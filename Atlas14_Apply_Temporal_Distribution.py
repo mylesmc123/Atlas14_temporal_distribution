@@ -1,0 +1,164 @@
+# %%
+import xarray as xr
+import datetime
+import rioxarray
+import pandas as pd
+from io import StringIO
+from tqdm import tqdm
+
+temporal_value_occurrence = 0.50 # as a float
+temporal_value_occurrence_name = str(int(temporal_value_occurrence *100))+'PercentOccurence'
+temporal_value_occurrence_column = str(int(temporal_value_occurrence *100))+'%'
+
+temporal_duration_table = "data\se_1_24h_temporal.csv"
+temporal_duration_name = "24hDistribution"
+
+grids = {
+    '002yr_Partial_Duration_24hPrecip': {
+        'path': 'data\se2yr24ha\se2yr24ha.asc',
+    },
+    '005yr_Partial_Duration_24hPrecip': {
+        'path': 'data\se5yr24ha\se5yr24ha.asc',
+    },
+    '010yr_Partial_Duration_24hPrecip': {
+        'path': 'data\se10yr24ha\se10yr24ha.asc',
+    },
+    '025yr_Partial_Duration_24hPrecip': {
+        'path': 'data\se25yr24ha\se25yr24ha.asc',
+    },
+    '50yr_Partial_Duration_24hPrecip': {
+        'path': 'data\se50yr24ha\se50yr24ha.asc',
+    },
+    '100yr_Partial_Duration_24hPrecip': {
+        'path': 'data\se100yr24ha\se100yr24ha.asc',
+    },
+    '500yr_Partial_Duration_24hPrecip': {
+        'path': 'data\se500yr24ha\se500yr24ha.asc',
+    },
+    '100yr_Partial_Duration_05mPrecip': {
+        'path': 'data\se100yr05ma\se100yr05ma.asc',
+    },
+    '100yr_Partial_Duration_06hPrecip': {
+        'path': 'data\se100yr06ha\se100yr06ha.asc',
+    },
+    '100yr_Partial_Duration_12hPrecip': {
+        'path': 'data\se100yr12ha\se100yr12ha.asc',
+    },
+    '100yr_Partial_Duration_60mPrecip': {
+        'path': 'data\se100yr60ma\se100yr60ma.asc',
+    },
+}
+
+for grid in tqdm(grids):
+    grid_name = grid
+    print(f'\nProcessing {grid_name}...')
+    grid_file = grids[grid]['path']
+
+    da = rioxarray.open_rasterio(grid_file, masked=True)
+    # # Convert units to inches.
+    da = da/1000
+    # da.squeeze().plot.imshow()
+
+    # %%
+    da
+
+    # %%
+
+    # Open Temporal Distribution Tables downloaded from NOAA
+    # CSV source: https://hdsc.nws.noaa.gov/pfds/pfds_temporal.html
+    with open(temporal_duration_table, "r") as f:
+        data = f.readlines()
+    # data.strip('\n')
+
+    # %%
+    table_start_indexes = [i for i,v in enumerate(data) if "CUMULATIVE PERCENTAGES OF TOTAL PRECIPITATION" in v]
+    table_start_indexes
+
+    # %%
+    table_titles = [v for i,v in enumerate(data) if "CUMULATIVE PERCENTAGES OF TOTAL PRECIPITATION FOR" in v]
+    table_titles = [v.split("CUMULATIVE PERCENTAGES OF TOTAL PRECIPITATION FOR ")[-1].replace(" CASES\n","") for v in table_titles]
+    table_titles  
+
+    # %%
+    # For each quartile table, create a dataframe, assign the temporal distribution to the grid, stack the grids to a single xarray dataset, export a netCDF.
+    length_tables = len(table_start_indexes)
+    for i,table in enumerate(table_start_indexes):
+        table_title = table_titles[i]
+        print(f'Processing {table_title}')
+        # table_headers are +2 rows from the table_start_index row.
+        table_header_index = table + 2
+        # ensure not at end of table before using the next table start index.
+        if i < length_tables - 1:
+            table = data[table_header_index:table_start_indexes[i+1]]
+            table = [v.rstrip("\n") for v in table]
+            # print (*table)
+            df_table = pd.read_csv(StringIO("\n".join(table)), sep=",", header=0)
+        else: # last table just grabs to end of file
+            table = data[table_header_index:]
+            table = [v.rstrip("\n") for v in table]
+            df_table = pd.read_csv(StringIO("\n".join(table)), sep=",", header=0)
+        
+        # collecting data arrays for each timestep to stack into a single dataset.
+        list_da = []
+        # starting data at epoch time + 0.25 hours = 01JAN1970 00:15:00. HEC-Vortex Timeshift bug workaround. DSS starTime will be 01JAN1970 00:00:00.
+        start_time = datetime.datetime.utcfromtimestamp(0) +  datetime.timedelta(hours=0.25)
+        # for each timestep in the table, assign the temporal distribution to the grid.
+        for index, row in df_table.iterrows():
+            timestep = start_time + datetime.timedelta(hours=row['hours'])
+            
+            da_copy = da.copy(deep=True)
+            
+            # Convert Units to the 50% Occurance Temporal Value increment to create a dataarray to be stacked into a dataset with a time dimension.
+            da_copy = da_copy*(row['50%']/100)
+            #  Rename data array data vriable
+            da_copy = da_copy.rename('Precip')
+            # Assign time coordinate  
+            da_copy = da_copy.assign_coords(time = timestep)
+            da_copy = da_copy.expand_dims(dim="time")
+            # Append to list
+            list_da.append(da_copy)
+
+        # stack the dataarrays into a single dataset.
+        # ds = xr.combine_by_coords(list_da)
+        ds = xr.concat(list_da, dim="time")
+        ds = ds.to_dataset(name='Precip')
+        
+        # Remove band dimension.
+        ds = ds.squeeze()
+        ds = ds.drop_vars('band')
+
+        # CF Conventions
+        ds = ds.rename({
+            'x':'longitude',
+            'y':'latitude'
+        })
+
+        ds['latitude'].attrs['units'] = 'degrees_north'
+        ds['latitude'].attrs['standard_name'] = 'latitude'
+        ds['latitude'].attrs['long_name'] = 'latitude'
+        ds['latitude'].attrs['axis'] = 'Y'
+
+        ds['longitude'].attrs['units'] = 'degrees_east'
+        ds['longitude'].attrs['standard_name'] = 'longitude'
+        ds['longitude'].attrs['long_name'] = 'longitude'
+        ds['longitude'].attrs['axis'] = 'X'
+
+        ds['time'].attrs['standard_name'] = 'time'
+        ds['time'].attrs['long_name'] = 'time'
+        ds['time'].attrs['axis'] = 'T'
+
+        ds['Precip'].attrs['units'] = 'inches'
+        ds['Precip'].attrs['long_name'] = 'Incremental Precipitation'
+        
+        # Export to netCDF
+        output_file = f"output\Atlas14_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
+        ds.to_netcdf(output_file)
+
+    # %%
+    ds['Precip'].isel(time=1).plot()
+
+    # %%
+    ds['Precip'].sel(latitude=32, longitude=-88, method='nearest').plot()
+
+
+
