@@ -165,7 +165,7 @@ for grid in tqdm(grids):
         ds['Precip'].attrs['long_name'] = 'Incremental Precipitation'
         
         # Export to netCDF
-        output_file = f"output\{region['name']}\Atlas14_{region['name']}_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
+        output_file = f"output\{region['name']}\nc\Atlas14_{region['name']}_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
         ds.to_netcdf(output_file)
 
     # %%
