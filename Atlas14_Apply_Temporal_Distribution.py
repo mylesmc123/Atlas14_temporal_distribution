@@ -10,42 +10,56 @@ temporal_value_occurrence = 0.50 # as a float
 temporal_value_occurrence_name = str(int(temporal_value_occurrence *100))+'PercentOccurence'
 temporal_value_occurrence_column = str(int(temporal_value_occurrence *100))+'%'
 
-temporal_duration_table = "data\se_1_24h_temporal.csv"
-temporal_duration_name = "24hDistribution"
+region = {
+    'name': 'Texas',
+    'abbrev': 'tx'
+}
+
+temporal_duration_table = f'data\{region["name"]}\{region["abbrev"]}_3_24h_temporal.csv'
+temporal_duration_name = '24hDistribution'
 
 grids = {
     '002yr_Partial_Duration_24hPrecip': {
-        'path': 'data\se2yr24ha\se2yr24ha.asc',
+        'path': f'data\{region["name"]}\{region["abbrev"]}2yr24ha\{region["abbrev"]}2yr24ha.asc',
     },
     '005yr_Partial_Duration_24hPrecip': {
-        'path': 'data\se5yr24ha\se5yr24ha.asc',
+        'path': f'data\{region["name"]}\{region["abbrev"]}5yr24ha\{region["abbrev"]}5yr24ha.asc',
     },
     '010yr_Partial_Duration_24hPrecip': {
-        'path': 'data\se10yr24ha\se10yr24ha.asc',
+        'path': f'data\{region["name"]}\{region["abbrev"]}10yr24ha\{region["abbrev"]}10yr24ha.asc',
     },
     '025yr_Partial_Duration_24hPrecip': {
-        'path': 'data\se25yr24ha\se25yr24ha.asc',
+        'path': f'data\{region["name"]}\{region["abbrev"]}25yr24ha\{region["abbrev"]}25yr24ha.asc',
     },
     '50yr_Partial_Duration_24hPrecip': {
-        'path': 'data\se50yr24ha\se50yr24ha.asc',
+        'path': f'data\{region["name"]}\{region["abbrev"]}50yr24ha\{region["abbrev"]}50yr24ha.asc',
     },
     '100yr_Partial_Duration_24hPrecip': {
-        'path': 'data\se100yr24ha\se100yr24ha.asc',
+        'path': f'data\{region["name"]}\{region["abbrev"]}100yr24ha\{region["abbrev"]}100yr24ha.asc',
     },
     '500yr_Partial_Duration_24hPrecip': {
-        'path': 'data\se500yr24ha\se500yr24ha.asc',
+        'path': f'data\{region["name"]}\{region["abbrev"]}500yr24ha\{region["abbrev"]}500yr24ha.asc',
     },
-    '100yr_Partial_Duration_05mPrecip': {
-        'path': 'data\se100yr05ma\se100yr05ma.asc',
+    '100yr_Partial_Duration_05mPrecip' : {
+        'path': f'data\{region["name"]}\{region["abbrev"]}100yr05ma\{region["abbrev"]}100yr05ma.asc',
+    },   
+    '100yr_Partial_Duration_15mPrecip': {
+        'path': f'data\{region["name"]}\{region["abbrev"]}100yr15ma\{region["abbrev"]}100yr15ma.asc',
+    },
+    '100yr_Partial_Duration_30mPrecip': {
+        'path': f'data\{region["name"]}\{region["abbrev"]}100yr30ma\{region["abbrev"]}100yr30ma.asc',
+    },
+    '100yr_Partial_Duration_02hPrecip': {
+        'path': f'data\{region["name"]}\{region["abbrev"]}100yr02ha\{region["abbrev"]}100yr02ha.asc',
     },
     '100yr_Partial_Duration_06hPrecip': {
-        'path': 'data\se100yr06ha\se100yr06ha.asc',
+        'path': f'data\{region["name"]}\{region["abbrev"]}100yr06ha\{region["abbrev"]}100yr06ha.asc',
     },
     '100yr_Partial_Duration_12hPrecip': {
-        'path': 'data\se100yr12ha\se100yr12ha.asc',
+        'path': f'data\{region["name"]}\{region["abbrev"]}100yr12ha\{region["abbrev"]}100yr12ha.asc',
     },
     '100yr_Partial_Duration_60mPrecip': {
-        'path': 'data\se100yr60ma\se100yr60ma.asc',
+        'path': f'data\{region["name"]}\{region["abbrev"]}100yr60ma\{region["abbrev"]}100yr60ma.asc',
     },
 }
 
@@ -151,7 +165,7 @@ for grid in tqdm(grids):
         ds['Precip'].attrs['long_name'] = 'Incremental Precipitation'
         
         # Export to netCDF
-        output_file = f"output\Atlas14_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
+        output_file = f"output\{region['name']}\Atlas14_{region['name']}_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
         ds.to_netcdf(output_file)
 
     # %%
