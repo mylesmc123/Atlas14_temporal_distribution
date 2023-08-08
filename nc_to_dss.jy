@@ -6,7 +6,7 @@ import os
 # cd C:\Apps\HEC-HMS-4.10-beta.9
 # HEC-HMS.cmd -script "C:\jy\nc_to_dss.jy"
 
-variables = ['Precip']
+variables = ['PrecipInc']
 
 clip_shp = r"V:\projects\p00659_dec_glo_phase3\01_processing\GIS\Precip_Extents.shp"
 
