@@ -124,7 +124,7 @@ for grid in tqdm(grids):
             
             # Convert Units to the {temporal_value_occurrence_column} Occurance Temporal Value increment to create a dataarray to be stacked into a dataset with a time dimension.
             da_copy = da_copy*(row[f'{temporal_value_occurrence_column}']/100)
-            #  Rename data array data vriable
+            #  Rename data array data variable
             da_copy = da_copy.rename('PrecipCumulative')
             # Assign time coordinate  
             da_copy = da_copy.assign_coords(time = timestep)
@@ -171,14 +171,14 @@ for grid in tqdm(grids):
         ds['PrecipInc'].attrs['long_name'] = 'Incremental Precipitation'
         
         # Add temporal distribution to the dataset.
-        da = df_table[['hours',f'{temporal_value_occurrence_column}']].to_xarray()
-        da.expand_dims(dim="time")
-        da["time"] = ds.time
-        da[f'{temporal_value_occurrence_column}'] = da[f'{temporal_value_occurrence_column}'].swap_dims({"index":"time"})
-        da = da.drop_vars("hours")
-        da = da.drop_vars("index")
-        da = da.rename({f"{temporal_value_occurrence_column}":"TemporalDistribution"})
-        ds = xr.merge([ds,da])
+        ds_td = df_table[['hours',f'{temporal_value_occurrence_column}']].to_xarray()
+        ds_td.expand_dims(dim="time")
+        ds_td["time"] = ds.time
+        ds_td[f'{temporal_value_occurrence_column}'] = ds_td[f'{temporal_value_occurrence_column}'].swap_dims({"index":"time"})
+        ds_td = ds_td.drop_vars("hours")
+        ds_td = ds_td.drop_vars("index")
+        ds_td = ds_td.rename({f"{temporal_value_occurrence_column}":"TemporalDistribution"})
+        ds = xr.merge([ds,ds_td])
         ds['TemporalDistribution'].attrs['units'] = 'percent'
         ds['TemporalDistribution'].attrs['long_name'] = 'Temporal Distribution Culuative Percentage'
         ds['TemporalDistribution'].attrs['occurence'] = f'{temporal_value_occurrence_column}'
@@ -186,8 +186,10 @@ for grid in tqdm(grids):
         ds['TemporalDistribution'].attrs['source'] = f'NOAA Atlas 14: {temporal_duration_table}'
 
         # Export to netCDF
-        output_file = f"output\{region['name']}\nc\Atlas14_{region['name']}_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
+        output_file = rf"output\{region['name']}\nc\Atlas14_{region['name']}_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
         ds.to_netcdf(output_file)
+
+        # Next Step is to run the Jython script to convert the netCDF to a DSS file.
 
     # %%
     ds['PrecipCumulative'].isel(time=1).plot()
