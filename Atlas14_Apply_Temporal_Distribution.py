@@ -122,10 +122,10 @@ for grid in tqdm(grids):
             
             da_copy = da.copy(deep=True)
             
-            # Convert Units to the 50% Occurance Temporal Value increment to create a dataarray to be stacked into a dataset with a time dimension.
-            da_copy = da_copy*(row['50%']/100)
+            # Convert Units to the {temporal_value_occurrence_column} Occurance Temporal Value increment to create a dataarray to be stacked into a dataset with a time dimension.
+            da_copy = da_copy*(row[f'{temporal_value_occurrence_column}']/100)
             #  Rename data array data vriable
-            da_copy = da_copy.rename('Precip')
+            da_copy = da_copy.rename('PrecipCumulative')
             # Assign time coordinate  
             da_copy = da_copy.assign_coords(time = timestep)
             da_copy = da_copy.expand_dims(dim="time")
@@ -135,11 +135,14 @@ for grid in tqdm(grids):
         # stack the dataarrays into a single dataset.
         # ds = xr.combine_by_coords(list_da)
         ds = xr.concat(list_da, dim="time")
-        ds = ds.to_dataset(name='Precip')
+        ds = ds.to_dataset(name='PrecipCumulative')
         
         # Remove band dimension.
         ds = ds.squeeze()
         ds = ds.drop_vars('band')
+
+        # Create Precip Incremental variable
+        ds['PrecipInc'] = ds['PrecipCumulative'].diff(dim='time', label='upper')
 
         # CF Conventions
         ds = ds.rename({
@@ -161,18 +164,36 @@ for grid in tqdm(grids):
         ds['time'].attrs['long_name'] = 'time'
         ds['time'].attrs['axis'] = 'T'
 
-        ds['Precip'].attrs['units'] = 'inches'
-        ds['Precip'].attrs['long_name'] = 'Incremental Precipitation'
+        ds['PrecipCumulative'].attrs['units'] = 'inches'
+        ds['PrecipCumulative'].attrs['long_name'] = 'Cumulative Precipitation'
         
+        ds['PrecipInc'].attrs['units'] = 'inches'
+        ds['PrecipInc'].attrs['long_name'] = 'Incremental Precipitation'
+        
+        # Add temporal distribution to the dataset.
+        da = df_table[['hours',f'{temporal_value_occurrence_column}']].to_xarray()
+        da.expand_dims(dim="time")
+        da["time"] = ds.time
+        da[f'{temporal_value_occurrence_column}'] = da[f'{temporal_value_occurrence_column}'].swap_dims({"index":"time"})
+        da = da.drop_vars("hours")
+        da = da.drop_vars("index")
+        da = da.rename({f"{temporal_value_occurrence_column}":"TemporalDistribution"})
+        ds = xr.merge([ds,da])
+        ds['TemporalDistribution'].attrs['units'] = 'percent'
+        ds['TemporalDistribution'].attrs['long_name'] = 'Temporal Distribution Culuative Percentage'
+        ds['TemporalDistribution'].attrs['occurence'] = f'{temporal_value_occurrence_column}'
+        ds['TemporalDistribution'].attrs['temporalDuration'] = temporal_duration_name
+        ds['TemporalDistribution'].attrs['source'] = f'NOAA Atlas 14: {temporal_duration_table}'
+
         # Export to netCDF
         output_file = f"output\{region['name']}\nc\Atlas14_{region['name']}_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
         ds.to_netcdf(output_file)
 
     # %%
-    ds['Precip'].isel(time=1).plot()
+    ds['PrecipCumulative'].isel(time=1).plot()
 
     # %%
-    ds['Precip'].sel(latitude=32, longitude=-88, method='nearest').plot()
+    ds['PrecipCumulative'].sel(latitude=32, longitude=-88, method='nearest').plot()
 
 
 
