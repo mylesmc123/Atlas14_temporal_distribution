@@ -25,10 +25,11 @@ quartiles_wanted = ['ALL']
 temporal_duration_table = f'data\{region["name"]}\{region["abbrev"]}_1_24h_temporal.csv'
 temporal_duration_name = '24hDistribution'
 
-years_padded = ['002', '010', '025', '050', '100', '500']
+years_padded = ['002', '010', '025', '050', '100', '500'] # Greenbelt 10, 50, 100. do 6hr and 24hrtemporal
 years_int = [int(year) for year in years_padded] 
 
-precip_durations = ['05m', '60m', '06h', '12h', '24h']
+precip_durations = ['05m', '60m', '06h', '12h', '24h'] # greenbelt 24hr
+
 
 grids = {}
 for i, year in enumerate(years_padded):
