@@ -9,7 +9,7 @@ import os
 variables = ['PrecipInc']
 
 # clip_shp = r"V:\projects\p00659_dec_glo_phase3\01_processing\GIS\Precip_Extents.shp"
-clip_shp = r"Z:\Z GIS\Amite\Amite_bbox_Albers.shp"
+clip_shp = r"C:\Users\MBMcManus\OneDrive - Garver\Documents\Work\ArkansasRiverWest\GIS\boundingbox.shp"
 
 geo_options = {
     'pathToShp': clip_shp,
@@ -19,11 +19,11 @@ geo_options = {
 }
 
 # in_dir = r"Z:\py\Atlas14_temporal_distribution\output\Texas\nc"
-in_dir = r"Z:\py\Atlas14_temporal_distribution\output\Southeast\nc"
+in_dir = r"C:\py\Atlas14_temporal_distribution\output\I57\nc"
 f = glob.glob(in_dir+"//*.nc")
 print ('*.nc Files found:' + str(len(f)))
 
-out_dir = r"c:\jy\Atlas14_temporal_distribution\dss"
+out_dir = r"C:\py\Atlas14_temporal_distribution\output\I57\dss"
 
 for afile in f:
     head, tail = os.path.split(afile)

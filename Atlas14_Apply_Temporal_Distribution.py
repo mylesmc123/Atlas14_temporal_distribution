@@ -6,18 +6,20 @@ import pandas as pd
 import numpy as np
 from io import StringIO
 from tqdm import tqdm
+import os
+# %%
 
 temporal_value_occurrence = 0.50 # as a float
 temporal_value_occurrence_name = str(int(temporal_value_occurrence *100))+'PercentOccurence'
 temporal_value_occurrence_column = str(int(temporal_value_occurrence *100))+'%'
 
 # Add optional frontend rampup time to the start_time by zilling zeroes to the data
-ramp_up_time_hours = 48
+ramp_up_time_hours = 0
 
-region = {
-    'name': 'Southeast',
-    'abbrev': 'se'
-}
+# region = {
+#     'name': 'Southeast',
+#     'abbrev': 'se'
+# }
 
 # quartiles_wanted = ['FIRST-QUARTILE','SECOND-QUARTILE','THIRD-QUARTILE','FOURTH-QUARTILE', 'ALL']
 quartiles_wanted = ['ALL']
@@ -25,16 +27,19 @@ quartiles_wanted = ['ALL']
 temporal_duration_table = f'data\{region["name"]}\{region["abbrev"]}_1_24h_temporal.csv'
 temporal_duration_name = '24hDistribution'
 
-years_padded = ['002', '010', '025', '050', '100', '500']
+# years_padded = ['002', '010', '025', '050', '100', '500']
+years_padded = ['100']
 years_int = [int(year) for year in years_padded] 
 
-precip_durations = ['05m', '60m', '06h', '12h', '24h']
+# precip_durations = ['05m', '60m', '06h', '12h', '24h']
+precip_durations = ['24h']
 
 grids = {}
 for i, year in enumerate(years_padded):
     for dur in precip_durations:
         grids[f'{year}yr_Partial_Duration_{dur}Precip'] = {
-            'path': f'data\{region["name"]}\{region["abbrev"]}{years_int[i]}yr{dur}a\{region["abbrev"]}{years_int[i]}yr{dur}a.asc',
+            # 'path': f'data\{region["name"]}\{region["abbrev"]}{years_int[i]}yr{dur}a\{region["abbrev"]}{years_int[i]}yr{dur}a.asc',
+            'path': f'data\I57.tif',
         }
 
 for grid in tqdm(grids):
@@ -45,7 +50,7 @@ for grid in tqdm(grids):
     da = rioxarray.open_rasterio(grid_file, masked=True)
     # # Convert units to inches.
     da = da/1000
-    # da.squeeze().plot.imshow()
+    da.squeeze().plot.imshow()
 
     # %%
     da
@@ -104,11 +109,13 @@ for grid in tqdm(grids):
         df_table['hours']
         
         # drop final row of rampup table before appending df_table
-        df_table_rampup.drop(df_table_rampup.tail(1).index,inplace=True)
-        df_table = df_table_rampup.append(df_table, ignore_index=True)
-        df_table.fillna(0, inplace=True)
+        if ramp_up_time_hours>0:
+            df_table_rampup.drop(df_table_rampup.tail(1).index,inplace=True)
+            df_table = df_table_rampup.append(df_table, ignore_index=True)
+            df_table.fillna(0, inplace=True)
+        
+        # %%
         df_table
-
 
         # %%
         # for each timestep in the table, assign the temporal distribution to the grid.
@@ -181,7 +188,11 @@ for grid in tqdm(grids):
         ds['TemporalDistribution'].attrs['source'] = f'NOAA Atlas 14: {temporal_duration_table}'
 
         # Export to netCDF
-        output_file = rf"output\{region['name']}\nc\Atlas14_{region['name']}_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
+        # output_file = rf"output\{region['name']}\nc\Atlas14_{region['name']}_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
+        output_file = rf"output\I57\nc\Atlas14_I57_{year}yr_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
+        # create output directory if it does not exist
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        print(f'Exporting to {output_file}')
         ds.to_netcdf(output_file)
 
         # Next Step is to run the Jython script to convert the netCDF to a DSS file.
@@ -191,3 +202,4 @@ for grid in tqdm(grids):
 
     # %%
     ds['PrecipCumulative'].sel(latitude=32, longitude=-88, method='nearest').plot()
+# %%
