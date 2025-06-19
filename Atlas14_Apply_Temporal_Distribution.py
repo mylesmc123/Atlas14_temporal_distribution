@@ -14,12 +14,12 @@ temporal_value_occurrence_name = str(int(temporal_value_occurrence *100))+'Perce
 temporal_value_occurrence_column = str(int(temporal_value_occurrence *100))+'%'
 
 # Add optional frontend rampup time to the start_time by zilling zeroes to the data
-ramp_up_time_hours = 0
+# ramp_up_time_hours = 0
 
-# region = {
-#     'name': 'Southeast',
-#     'abbrev': 'se'
-# }
+region = {
+    'name': 'Southeast',
+    'abbrev': 'se'
+}
 
 # quartiles_wanted = ['FIRST-QUARTILE','SECOND-QUARTILE','THIRD-QUARTILE','FOURTH-QUARTILE', 'ALL']
 quartiles_wanted = ['ALL']
@@ -90,29 +90,30 @@ for grid in tqdm(grids):
         # collecting data arrays for each timestep to stack into a single dataset.
         list_da = []
         # starting data at epoch time + 0.25 hours = 01JAN1970 00:15:00. HEC-Vortex Timeshift bug workaround. DSS starTime will be 01JAN1970 00:00:00.
-        start_time = datetime.datetime.utcfromtimestamp(0) +  datetime.timedelta(hours=0.25)
+        # start_time = datetime.datetime.utcfromtimestamp(0) +  datetime.timedelta(hours=0.25)
+        start_time = datetime.datetime.utcfromtimestamp(0)
         
         
-        ramp_up_table_rows = ramp_up_time_hours * 2 # temporal distribution table is in 30 minute increments
+        # ramp_up_table_rows = ramp_up_time_hours * 2 # temporal distribution table is in 30 minute increments
         # Create zeroes array over the rampup time and add that to the df_table
-        table_row_hours = np.arange(0.0, 48.5, 0.5)
+        # table_row_hours = np.arange(0.0, 48.5, 0.5)
         # table_row_hours
         
-        df_table_rampup = pd.DataFrame({
-            'hours':table_row_hours, 
-            f'{temporal_value_occurrence_column}':0*ramp_up_time_hours
-        })
+        # df_table_rampup = pd.DataFrame({
+        #     'hours':table_row_hours, 
+        #     f'{temporal_value_occurrence_column}':0*ramp_up_time_hours
+        # })
 
         # Append the rampup table to the df_table by adding the value of last row of the rampup table to the hours column of the df_table.
-        df_table['hours'] = df_table['hours'] + df_table_rampup['hours'].iloc[-1]
+        # df_table['hours'] = df_table['hours'] + df_table_rampup['hours'].iloc[-1]
         # df_table = df_table_rampup.append(df_table, ignore_index=True)
         df_table['hours']
         
         # drop final row of rampup table before appending df_table
-        if ramp_up_time_hours>0:
-            df_table_rampup.drop(df_table_rampup.tail(1).index,inplace=True)
-            df_table = df_table_rampup.append(df_table, ignore_index=True)
-            df_table.fillna(0, inplace=True)
+        # if ramp_up_time_hours>0:
+        #     df_table_rampup.drop(df_table_rampup.tail(1).index,inplace=True)
+        #     df_table = df_table_rampup.append(df_table, ignore_index=True)
+        #     df_table.fillna(0, inplace=True)
         
         # %%
         df_table
@@ -196,10 +197,11 @@ for grid in tqdm(grids):
         ds.to_netcdf(output_file)
 
         # Next Step is to run the Jython script to convert the netCDF to a DSS file.
-
+    # %%
+    ds
     # %%
     ds['PrecipCumulative'].isel(time=1).plot()
 
     # %%
-    ds['PrecipCumulative'].sel(latitude=32, longitude=-88, method='nearest').plot()
+    ds['PrecipInc'].sel(latitude=32, longitude=-88, method='nearest').plot()
 # %%
