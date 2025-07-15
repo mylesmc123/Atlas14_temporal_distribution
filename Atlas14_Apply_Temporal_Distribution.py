@@ -7,7 +7,11 @@ import numpy as np
 from io import StringIO
 from tqdm import tqdm
 import os
+import geopandas as gpd
 # %%
+# A shape file to clip the data to.
+# I57 HMS project bounding box.
+clip_shp = "boundaries\I57_BB_3857.shp"
 
 temporal_value_occurrence = 0.50 # as a float
 temporal_value_occurrence_name = str(int(temporal_value_occurrence *100))+'PercentOccurence'
@@ -38,8 +42,8 @@ grids = {}
 for i, year in enumerate(years_padded):
     for dur in precip_durations:
         grids[f'{year}yr_Partial_Duration_{dur}Precip'] = {
-            # 'path': f'data\{region["name"]}\{region["abbrev"]}{years_int[i]}yr{dur}a\{region["abbrev"]}{years_int[i]}yr{dur}a.asc',
-            'path': f'data\I57.tif',
+            'path': f'data\{region["name"]}\{region["abbrev"]}{years_int[i]}yr{dur}a\{region["abbrev"]}{years_int[i]}yr{dur}a.asc',
+            # 'path': f'data\I57.tif',
         }
 
 for grid in tqdm(grids):
@@ -50,7 +54,14 @@ for grid in tqdm(grids):
     da = rioxarray.open_rasterio(grid_file, masked=True)
     # # Convert units to inches.
     da = da/1000
-    da.squeeze().plot.imshow()
+    # clip the data to the bounding box shape file.
+    clip_gdf = gpd.read_file(clip_shp)
+    da = da.rio.clip(geometries=clip_gdf.geometry.values, crs=clip_gdf.crs, drop=True)
+    da.squeeze().plot()  # Show the raster in interactive environments
+    # %%
+# Check if the da covers the extent of the clip_gdf
+    if da.rio.bounds() != tuple(clip_gdf.total_bounds):
+        print("Warning: The data does not cover the extent of the clip shape file. Please check the input data.")
 
     # %%
     da

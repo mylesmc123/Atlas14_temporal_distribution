@@ -63,7 +63,7 @@ for afile in f:
     #     .writeOptions(write_options) \
     #     .build()
 
-    myImport.process()
+    myImport.process()☺
 
 # print afile
 # print stormId
