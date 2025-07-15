@@ -3,27 +3,29 @@ from mil.army.usace.hec.vortex.geo import WktFactory
 import glob
 import os
 
-# cd C:\Apps\HEC-HMS-4.10-beta.9
-# HEC-HMS.cmd -script "C:\jy\Atlas14_temporal_distribution\nc_to_dss.jy"
+# cd C:\Program Files\HEC\HEC-HMS\4.12
+# HEC-HMS.cmd -script "C:\py\Atlas14_temporal_distribution\nc_to_dss.jy"
 
 variables = ['PrecipInc']
 
 # clip_shp = r"V:\projects\p00659_dec_glo_phase3\01_processing\GIS\Precip_Extents.shp"
-clip_shp = r"C:\Users\MBMcManus\OneDrive - Garver\Documents\Work\ArkansasRiverWest\GIS\boundingbox.shp"
+# clip_shp = r"C:\Users\MBMcManus\OneDrive - Garver\Documents\Work\ArkansasRiverWest\GIS\boundingbox.shp"
 
 geo_options = {
-    'pathToShp': clip_shp,
+    # 'pathToShp': clip_shp,
     'targetCellSize': '2000',
     'targetWkt': WktFactory.shg(),
     'resamplingMethod': 'Bilinear'
 }
 
 # in_dir = r"Z:\py\Atlas14_temporal_distribution\output\Texas\nc"
-in_dir = r"C:\py\Atlas14_temporal_distribution\output\I57\nc"
+in_dir = r"C:\py\Atlas14_temporal_distribution\output\I57_\nc"
 f = glob.glob(in_dir+"//*.nc")
 print ('*.nc Files found:' + str(len(f)))
 
-out_dir = r"C:\py\Atlas14_temporal_distribution\output\I57\dss"
+out_dir = r"C:\py\Atlas14_temporal_distribution\output\I57_\dss"
+if not os.path.exists(out_dir):
+    os.makedirs(out_dir)
 
 for afile in f:
     head, tail = os.path.split(afile)
@@ -40,7 +42,8 @@ for afile in f:
     write_options = {
     'partA': partA,
     'partB': partB,
-    'partF': partF
+    'partF': partF,
+    'dataType': 'PER-CUM',
     }
 
     # print write_options
@@ -63,7 +66,7 @@ for afile in f:
     #     .writeOptions(write_options) \
     #     .build()
 
-    myImport.process()☺
+    myImport.process()
 
 # print afile
 # print stormId

@@ -9,9 +9,11 @@ from tqdm import tqdm
 import os
 import geopandas as gpd
 # %%
-# A shape file to clip the data to.
-# I57 HMS project bounding box.
-clip_shp = "boundaries\I57_BB_3857.shp"
+
+# setup project dir data if custom merged diffrent from the Atlas 14 grid extent by region
+project_name = 'I57_'
+merged = True
+
 
 temporal_value_occurrence = 0.50 # as a float
 temporal_value_occurrence_name = str(int(temporal_value_occurrence *100))+'PercentOccurence'
@@ -28,11 +30,11 @@ region = {
 # quartiles_wanted = ['FIRST-QUARTILE','SECOND-QUARTILE','THIRD-QUARTILE','FOURTH-QUARTILE', 'ALL']
 quartiles_wanted = ['ALL']
 
-temporal_duration_table = f'data\{region["name"]}\{region["abbrev"]}_1_24h_temporal.csv'
+temporal_duration_table = f'data/{region["name"]}/{region["abbrev"]}_1_24h_temporal.csv'
 temporal_duration_name = '24hDistribution'
 
-# years_padded = ['002', '010', '025', '050', '100', '500']
-years_padded = ['100']
+# years_padded = ['001', '002', '005', '010', '025', '050', '100', '200']
+years_padded = ['001', '002', '005', '010', '025', '050', '100', '200', '500']
 years_int = [int(year) for year in years_padded] 
 
 # precip_durations = ['05m', '60m', '06h', '12h', '24h']
@@ -41,33 +43,44 @@ precip_durations = ['24h']
 grids = {}
 for i, year in enumerate(years_padded):
     for dur in precip_durations:
-        grids[f'{year}yr_Partial_Duration_{dur}Precip'] = {
-            'path': f'data\{region["name"]}\{region["abbrev"]}{years_int[i]}yr{dur}a\{region["abbrev"]}{years_int[i]}yr{dur}a.asc',
-            # 'path': f'data\I57.tif',
-        }
+        if not merged:
+            grids[f'{year}yr_Partial_Duration_{dur}Precip'] = {
+                'path': f'data/{region["name"]}/{region["abbrev"]}{years_int[i]}yr{dur}a/{region["abbrev"]}{years_int[i]}yr{dur}a.asc',
+                # 'path': f'data/I57.tif',
+                'year': year,
+                'year_int': years_int[i],
+                'duration': dur
+            }
+        else:
+            grids[f'{year}yr_Partial_Duration_{dur}Precip'] = {
+                'path': f'data/Merged/{project_name}/{project_name}{year}yr{dur}a.asc',
+                # 'path': f'data\I57.tif',
+                'year': year,
+                'year_int': years_int[i],
+                'duration': dur
+            }
 
-for grid in tqdm(grids):
+# %%
+for grid in grids:
+    ds = rioxarray.open_rasterio(grids[grid]['path'], masked=True)
+    print(grids[grid]['year'])
+
+# %%
+
+for grid in grids:
+    # print (f'\nProcessing {grid} with year: {grids[grid]["year"]} and duration: {grids[grid]["duration"]}')
     grid_name = grid
-    print(f'\nProcessing {grid_name}...')
+    print(f'\nProcessing {grids[grid]['path']}...')
     grid_file = grids[grid]['path']
-
     da = rioxarray.open_rasterio(grid_file, masked=True)
     # # Convert units to inches.
     da = da/1000
-    # clip the data to the bounding box shape file.
-    clip_gdf = gpd.read_file(clip_shp)
-    da = da.rio.clip(geometries=clip_gdf.geometry.values, crs=clip_gdf.crs, drop=True)
-    da.squeeze().plot()  # Show the raster in interactive environments
-    # %%
-# Check if the da covers the extent of the clip_gdf
-    if da.rio.bounds() != tuple(clip_gdf.total_bounds):
-        print("Warning: The data does not cover the extent of the clip shape file. Please check the input data.")
+    # da.squeeze().plot()  # Show the raster in interactive environments
 
     # %%
     da
 
     # %%
-
     # Open Temporal Distribution Tables downloaded from NOAA
     # CSV source: https://hdsc.nws.noaa.gov/pfds/pfds_temporal.html
     with open(temporal_duration_table, "r") as f:
@@ -201,7 +214,7 @@ for grid in tqdm(grids):
 
         # Export to netCDF
         # output_file = rf"output\{region['name']}\nc\Atlas14_{region['name']}_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
-        output_file = rf"output\I57\nc\Atlas14_I57_{year}yr_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
+        output_file = rf"output\{project_name}\nc\Atlas14_{project_name}{grids[grid]['year_int']}yr_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
         # create output directory if it does not exist
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
         print(f'Exporting to {output_file}')
@@ -214,5 +227,5 @@ for grid in tqdm(grids):
     ds['PrecipCumulative'].isel(time=20).plot()
 
     # %%
-    ds['PrecipInc'].sel(latitude=32, longitude=-88, method='nearest').plot()
+    ds['PrecipInc'].sel(latitude=36.2, longitude=-90, method='nearest').plot()
 # %%
