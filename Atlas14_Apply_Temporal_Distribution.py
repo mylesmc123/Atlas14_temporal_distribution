@@ -200,7 +200,7 @@ for grid in tqdm(grids):
     # %%
     ds
     # %%
-    ds['PrecipCumulative'].isel(time=1).plot()
+    ds['PrecipCumulative'].isel(time=20).plot()
 
     # %%
     ds['PrecipInc'].sel(latitude=32, longitude=-88, method='nearest').plot()
