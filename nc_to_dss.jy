@@ -19,11 +19,11 @@ geo_options = {
 }
 
 # in_dir = r"Z:\py\Atlas14_temporal_distribution\output\Texas\nc"
-in_dir = r"C:\py\Atlas14_temporal_distribution\output\I57_\nc"
+in_dir = r"C:\py\Atlas14_temporal_distribution\output\Lawton\nc"
 f = glob.glob(in_dir+"//*.nc")
 print ('*.nc Files found:' + str(len(f)))
 
-out_dir = r"C:\py\Atlas14_temporal_distribution\output\I57_\dss"
+out_dir = r"C:\py\Atlas14_temporal_distribution\output\Lawton\dss"
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 

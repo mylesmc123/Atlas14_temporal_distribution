@@ -11,8 +11,10 @@ import geopandas as gpd
 # %%
 
 # setup project dir data if custom merged diffrent from the Atlas 14 grid extent by region
-project_name = 'I57_'
-merged = True
+project_name = 'Lawton'
+clip_shp = "boundaries\Lawton_BB_StatePlaneOK.shp"
+# merged will be a merge of multiple Atlas 14 grids and clipped to the project extent already.
+merged = False
 
 
 temporal_value_occurrence = 0.50 # as a float
@@ -23,17 +25,17 @@ temporal_value_occurrence_column = str(int(temporal_value_occurrence *100))+'%'
 # ramp_up_time_hours = 0
 
 region = {
-    'name': 'Southeast',
-    'abbrev': 'se'
+    'name': 'Midwest',
+    'abbrev': 'mw',
+    'area': '4',
 }
 
 # quartiles_wanted = ['FIRST-QUARTILE','SECOND-QUARTILE','THIRD-QUARTILE','FOURTH-QUARTILE', 'ALL']
 quartiles_wanted = ['ALL']
 
-temporal_duration_table = f'data/{region["name"]}/{region["abbrev"]}_1_24h_temporal.csv'
+temporal_duration_table = f'data/{region["name"]}/{region["abbrev"]}_{region["area"]}_24h_temporal.csv'
 temporal_duration_name = '24hDistribution'
 
-# years_padded = ['001', '002', '005', '010', '025', '050', '100', '200']
 years_padded = ['001', '002', '005', '010', '025', '050', '100', '200', '500']
 years_int = [int(year) for year in years_padded] 
 
@@ -54,7 +56,6 @@ for i, year in enumerate(years_padded):
         else:
             grids[f'{year}yr_Partial_Duration_{dur}Precip'] = {
                 'path': f'data/Merged/{project_name}/{project_name}{year}yr{dur}a.asc',
-                # 'path': f'data\I57.tif',
                 'year': year,
                 'year_int': years_int[i],
                 'duration': dur
@@ -76,9 +77,24 @@ for grid in grids:
     # # Convert units to inches.
     da = da/1000
     # da.squeeze().plot()  # Show the raster in interactive environments
-
+    if not merged:
+        # clip the raster using clip_shp
+        # open the shapefile using geopandas
+        clip_gdf = gpd.read_file(clip_shp)
+        # set the crs to 4326
+        clip_gdf = clip_gdf.to_crs("EPSG:4326")
+        # set raster to crs EPSG:4326
+        da = da.rio.set_crs("EPSG:4326", inplace=True)
+        # clip the raster using the shapefile
+        from shapely.geometry import mapping
+        da = da.rio.clip(clip_gdf.geometry.apply(mapping),
+                        crs=clip_gdf.crs, drop=True, all_touched=True)
+        
     # %%
-    da
+    # import matplotlib.pyplot as plt
+    # da.squeeze().plot(cmap='viridis', vmin=0, vmax=float(da.max()))
+    # plt.title(f"{grid_name} - Precipitation (inches)")
+    # plt.show()
 
     # %%
     # Open Temporal Distribution Tables downloaded from NOAA
