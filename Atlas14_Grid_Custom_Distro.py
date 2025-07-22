@@ -55,6 +55,7 @@ scs_type_II_temporal_distribution = {
 }
 
 hms_temporal_distribution = {
+    0: 0.00,
     1: 0.30,
     2: 0.62,
     3: 0.94,
