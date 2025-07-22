@@ -131,7 +131,7 @@ for grid in grids:
         list_da = []
         # starting data at epoch time + 0.25 hours = 01JAN1970 00:15:00. HEC-Vortex Timeshift bug workaround. DSS starTime will be 01JAN1970 00:00:00.
         # start_time = datetime.datetime.utcfromtimestamp(0) +  datetime.timedelta(hours=0.25)
-        start_time = datetime.datetime.utcfromtimestamp(0)
+        start_time = datetime.datetime(2000, 1, 1, 0, 0, 0)
         
         
         # ramp_up_table_rows = ramp_up_time_hours * 2 # temporal distribution table is in 30 minute increments
@@ -147,7 +147,7 @@ for grid in grids:
         # Append the rampup table to the df_table by adding the value of last row of the rampup table to the hours column of the df_table.
         # df_table['hours'] = df_table['hours'] + df_table_rampup['hours'].iloc[-1]
         # df_table = df_table_rampup.append(df_table, ignore_index=True)
-        df_table['hours']
+        # df_table['hours']
         
         # drop final row of rampup table before appending df_table
         # if ramp_up_time_hours>0:
