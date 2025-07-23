@@ -11,7 +11,7 @@ import geopandas as gpd
 
 # setup project dir data if custom merged diffrent from the Atlas 14 grid extent by region
 project_name = 'Lawton'
-clip_shp = "boundaries\Lawton_BB_StatePlaneOK.shp"
+clip_shp = "boundaries/Lawton_BB_StatePlaneOK.shp"
 # merged will be a merge of multiple Atlas 14 grids and clipped to the project extent already.
 merged = False
 
@@ -55,55 +55,55 @@ scs_type_II_temporal_distribution = {
 }
 
 hms_temporal_distribution = {
-    0: 0.00,
-    1: 0.30,
-    2: 0.62,
-    3: 0.94,
-    4: 1.28,
-    5: 1.64,
-    6: 2.01,
-    7: 2.40,
-    8: 2.81,
-    9: 3.24,
-    10: 3.70,
-    11: 4.18,
-    12: 4.70,
-    13: 5.22,
-    14: 5.78,
-    15: 6.39,
-    16: 7.06,
-    17: 7.81,
-    18: 8.65,
-    19: 10.21,
-    20: 12.01,
-    21: 14.18,
-    22: 17.96,
-    23: 23.66,
-    24: 36.54,
-    25: 73.43,
-    26: 80.60,
-    27: 84.95,
-    28: 87.38,
-    29: 89.35,
-    30: 91.02,
-    31: 91.92,
-    32: 92.71,
-    33: 93.42,
-    34: 94.06,
-    35: 94.64,
-    36: 95.18,
-    37: 95.72,
-    38: 96.22,
-    39: 96.69,
-    40: 97.13,
-    41: 97.55,
-    42: 97.95,
-    43: 98.33,
-    44: 98.69,
-    45: 99.04,
-    46: 99.37,
-    47: 99.69,
-    48: 100.00
+    0.0: 0.00,
+    0.5: 0.30,
+    1.0: 0.62,
+    1.5: 0.94,
+    2.0: 1.28,
+    2.5: 1.64,
+    3.0: 2.01,
+    3.5: 2.40,
+    4.0: 2.81,
+    4.5: 3.24,
+    5.0: 3.70,
+    5.5: 4.18,
+    6.0: 4.70,
+    6.5: 5.22,
+    7.0: 5.78,
+    7.5: 6.39,
+    8.0: 7.06,
+    8.5: 7.81,
+    9.0: 8.65,
+    9.5: 10.21,
+    10.0: 12.01,
+    10.5: 14.18,
+    11.0: 17.96,
+    11.5: 23.66,
+    12.0: 36.54,
+    12.5: 73.43,
+    13.0: 80.60,
+    13.5: 84.95,
+    14.0: 87.38,
+    14.5: 89.35,
+    15.0: 91.02,
+    15.5: 91.92,
+    16.0: 92.71,
+    16.5: 93.42,
+    17.0: 94.06,
+    17.5: 94.64,
+    18.0: 95.18,
+    18.5: 95.72,
+    19.0: 96.22,
+    19.5: 96.69,
+    20.0: 97.13,
+    20.5: 97.55,
+    21.0: 97.95,
+    21.5: 98.33,
+    22.0: 98.69,
+    22.5: 99.04,
+    23.0: 99.37,
+    23.5: 99.69,
+    24.0: 100.00
 }
 
 tables = {
@@ -211,9 +211,11 @@ for grid in grids:
 
             ds['PrecipCumulative'].attrs['units'] = 'inches'
             ds['PrecipCumulative'].attrs['long_name'] = 'Cumulative Precipitation'
+            ds['PrecipCumulative'].attrs['cell_methods'] = 'time: sum'
             
             ds['PrecipInc'].attrs['units'] = 'inches'
             ds['PrecipInc'].attrs['long_name'] = 'Incremental Precipitation'
+            ds['PrecipInc'].attrs['cell_methods'] = 'time: sum'
             
             # Add temporal distribution to the dataset.
             ds_td = df_table.to_xarray()
@@ -227,7 +229,19 @@ for grid in grids:
             ds['TemporalDistribution'].attrs['units'] = 'percent'
             ds['TemporalDistribution'].attrs['long_name'] = 'Temporal Distribution Cumulative Percentage'
             ds['TemporalDistribution'].attrs['temporalDuration'] = temporal_duration_name
-            ds['TemporalDistribution'].attrs['source'] = f'{tables_name} Temporal Distribution Table'
+            
+            # add time bounds
+            ds['time'].attrs['bounds'] = 'time_bnds'
+            # the time bounds are time1, time2, time2, time3, time3, time4, ...
+            time_bnds = np.empty((len(ds['time'])-1, 2), dtype='datetime64[ns]')
+            time_bnds[:, 0] = ds['time'].values[:-1]
+            time_bnds[:, 1] = ds['time'].values[1:]
+            time_bnds = xr.DataArray(time_bnds, dims=['time', 'bnds'], coords={'time': ds['time'].values[:-1], 'bnds': [0, 1]})
+            time_bnds.name = 'time_bnds'
+            ds['time_bnds'] = time_bnds
+            ds['time_bnds'].attrs['standard_name'] = 'time_bnds'
+            ds['time_bnds'].attrs['long_name'] = 'Time Bounds'
+            ds['time_bnds'].attrs['description'] = 'Start and end of each time period'
 
             # Export to netCDF
             output_file = rf"output\{project_name}\nc\Atlas14_{project_name}{grids[grid]['year_int']}yr_{temporal_duration_name}_{tables_name}.nc"

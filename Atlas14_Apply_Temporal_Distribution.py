@@ -12,7 +12,7 @@ import geopandas as gpd
 
 # setup project dir data if custom merged diffrent from the Atlas 14 grid extent by region
 project_name = 'Lawton'
-clip_shp = "boundaries\Lawton_BB_StatePlaneOK.shp"
+clip_shp = "boundaries/Lawton_BB_StatePlaneOK.shp"
 # merged will be a merge of multiple Atlas 14 grids and clipped to the project extent already.
 merged = False
 
@@ -27,7 +27,7 @@ temporal_value_occurrence_column = str(int(temporal_value_occurrence *100))+'%'
 region = {
     'name': 'Midwest',
     'abbrev': 'mw',
-    'area': '4',
+    'area': '3',
 }
 
 # quartiles_wanted = ['FIRST-QUARTILE','SECOND-QUARTILE','THIRD-QUARTILE','FOURTH-QUARTILE', 'ALL']
@@ -209,14 +209,17 @@ for grid in grids:
 
         ds['PrecipCumulative'].attrs['units'] = 'inches'
         ds['PrecipCumulative'].attrs['long_name'] = 'Cumulative Precipitation'
+        ds['PrecipCumulative'].attrs['cell_methods'] = 'time: sum'
         
         ds['PrecipInc'].attrs['units'] = 'inches'
         ds['PrecipInc'].attrs['long_name'] = 'Incremental Precipitation'
+        ds['PrecipInc'].attrs['cell_methods'] = 'time: sum'
         
         # Add temporal distribution to the dataset.
         ds_td = df_table[['hours',f'{temporal_value_occurrence_column}']].to_xarray()
         ds_td.expand_dims(dim="time")
         ds_td["time"] = ds.time
+
         ds_td[f'{temporal_value_occurrence_column}'] = ds_td[f'{temporal_value_occurrence_column}'].swap_dims({"index":"time"})
         ds_td = ds_td.drop_vars("hours")
         ds_td = ds_td.drop_vars("index")
@@ -227,6 +230,20 @@ for grid in grids:
         ds['TemporalDistribution'].attrs['occurence'] = f'{temporal_value_occurrence_column}'
         ds['TemporalDistribution'].attrs['temporalDuration'] = temporal_duration_name
         ds['TemporalDistribution'].attrs['source'] = f'NOAA Atlas 14: {temporal_duration_table}'
+
+        # add time bounds
+        ds['time'].attrs['bounds'] = 'time_bnds'
+        # the time bounds are time1, time2, time2, time3, time3, time4, ...
+        time_bnds = np.empty((len(ds['time'])-1, 2), dtype='datetime64[ns]')
+        time_bnds[:, 0] = ds['time'].values[:-1]
+        time_bnds[:, 1] = ds['time'].values[1:]
+        time_bnds = xr.DataArray(time_bnds, dims=['time', 'bnds'], coords={'time': ds['time'].values[:-1], 'bnds': [0, 1]})
+        time_bnds.name = 'time_bnds'
+        ds['time_bnds'] = time_bnds
+        ds['time_bnds'].attrs['standard_name'] = 'time_bnds'
+        ds['time_bnds'].attrs['long_name'] = 'Time Bounds'
+        ds['time_bnds'].attrs['description'] = 'Start and end of each time period'
+
 
         # Export to netCDF
         # output_file = rf"output\{region['name']}\nc\Atlas14_{region['name']}_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
