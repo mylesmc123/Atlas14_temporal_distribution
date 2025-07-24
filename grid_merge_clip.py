@@ -33,7 +33,7 @@ regions = {
 
 years_padded = ['001', '002', '005', '010', '025', '050', '100', '200', '500']
 years_int = [int(year) for year in years_padded] 
-precip_durations = ['24h']
+precip_durations = ['06h', '24h']
 
 grids = {}
 for i, year in enumerate(years_padded):
@@ -79,6 +79,7 @@ for i, year in enumerate(years_padded):
                 src1_crs = 'EPSG:4326'
                 src2_crs = 'EPSG:4326'
                 clip_gdf = clip_gdf.to_crs('EPSG:4326')
+                
 
                 # Merge the two grids first
                 merged, merged_transform = merge([src1, src2])

@@ -12,6 +12,8 @@ import geopandas as gpd
 
 # setup project dir data if custom merged diffrent from the Atlas 14 grid extent by region
 project_name = 'I57_'
+# clip_shp = "boundaries/Lawton_BB_StatePlaneOK.shp"
+# merged will be a merge of multiple Atlas 14 grids and clipped to the project extent already.
 merged = True
 
 
@@ -24,21 +26,18 @@ temporal_value_occurrence_column = str(int(temporal_value_occurrence *100))+'%'
 
 region = {
     'name': 'Southeast',
-    'abbrev': 'se'
+    'abbrev': 'se',
+    'area': '1',
 }
 
 # quartiles_wanted = ['FIRST-QUARTILE','SECOND-QUARTILE','THIRD-QUARTILE','FOURTH-QUARTILE', 'ALL']
 quartiles_wanted = ['ALL']
 
-temporal_duration_table = f'data/{region["name"]}/{region["abbrev"]}_1_24h_temporal.csv'
-temporal_duration_name = '24hDistribution'
-
-# years_padded = ['001', '002', '005', '010', '025', '050', '100', '200']
 years_padded = ['001', '002', '005', '010', '025', '050', '100', '200', '500']
 years_int = [int(year) for year in years_padded] 
 
 # precip_durations = ['05m', '60m', '06h', '12h', '24h']
-precip_durations = ['24h']
+precip_durations = ['06h','24h']
 
 grids = {}
 for i, year in enumerate(years_padded):
@@ -54,178 +53,223 @@ for i, year in enumerate(years_padded):
         else:
             grids[f'{year}yr_Partial_Duration_{dur}Precip'] = {
                 'path': f'data/Merged/{project_name}/{project_name}{year}yr{dur}a.asc',
-                # 'path': f'data\I57.tif',
                 'year': year,
                 'year_int': years_int[i],
                 'duration': dur
             }
 
+# temporal distribution durations wanted
+temporal_durations_wanted = ['6h', '12h', '24h']
+
+temporal_duration_tables = {
+    f'{dur}Distribution': f'data/{region["name"]}/{region["abbrev"]}_{region["area"]}_{dur}_temporal.csv'
+    for dur in temporal_durations_wanted
+}
+
+# temporal_duration_table = f'data/{region["name"]}/{region["abbrev"]}_{region["area"]}_24h_temporal.csv'
+# temporal_duration_name = '24hDistribution'
 # %%
-for grid in grids:
-    ds = rioxarray.open_rasterio(grids[grid]['path'], masked=True)
-    print(grids[grid]['year'])
-
-# %%
-
-for grid in grids:
-    # print (f'\nProcessing {grid} with year: {grids[grid]["year"]} and duration: {grids[grid]["duration"]}')
-    grid_name = grid
-    print(f'\nProcessing {grids[grid]['path']}...')
-    grid_file = grids[grid]['path']
-    da = rioxarray.open_rasterio(grid_file, masked=True)
-    # # Convert units to inches.
-    da = da/1000
-    # da.squeeze().plot()  # Show the raster in interactive environments
-
-    # %%
-    da
-
-    # %%
-    # Open Temporal Distribution Tables downloaded from NOAA
-    # CSV source: https://hdsc.nws.noaa.gov/pfds/pfds_temporal.html
-    with open(temporal_duration_table, "r") as f:
-        data = f.readlines()
-    # data.strip('\n')
-
-    # Only use the quartiles_wanted to get the table start indexes.
-    table_start_indexes = [i for i,v in enumerate(data) if "CUMULATIVE PERCENTAGES OF TOTAL PRECIPITATION" in v and any(q in v for q in quartiles_wanted)]
-    table_titles = [v for i,v in enumerate(data) if "CUMULATIVE PERCENTAGES OF TOTAL PRECIPITATION FOR" in v and any(q in v for q in quartiles_wanted)]
-    table_titles = [v.split("CUMULATIVE PERCENTAGES OF TOTAL PRECIPITATION FOR ")[-1].replace(" CASES\n","") for v in table_titles]
-
-    # %%
-    # For each quartile table, create a dataframe, assign the temporal distribution to the grid, stack the grids to a single xarray dataset, export a netCDF.
-    length_tables = len(table_start_indexes)
-    for i,table in enumerate(table_start_indexes):
-        table_title = table_titles[i]
-        print(f'Processing {table_title}')
-        # table_headers are +2 rows from the table_start_index row.
-        table_header_index = table + 2
-        # ensure not at end of table before using the next table start index.
-        if i < length_tables - 1:
-            table = data[table_header_index:table_start_indexes[i+1]]
-            table = [v.rstrip("\n") for v in table]
-            # print (*table)
-            df_table = pd.read_csv(StringIO("\n".join(table)), sep=",", header=0)
-        else: # last table just grabs to end of file
-            table = data[table_header_index:]
-            table = [v.rstrip("\n") for v in table]
-            df_table = pd.read_csv(StringIO("\n".join(table)), sep=",", header=0)
-        
-        # collecting data arrays for each timestep to stack into a single dataset.
-        list_da = []
-        # starting data at epoch time + 0.25 hours = 01JAN1970 00:15:00. HEC-Vortex Timeshift bug workaround. DSS starTime will be 01JAN1970 00:00:00.
-        # start_time = datetime.datetime.utcfromtimestamp(0) +  datetime.timedelta(hours=0.25)
-        start_time = datetime.datetime.utcfromtimestamp(0)
-        
-        
-        # ramp_up_table_rows = ramp_up_time_hours * 2 # temporal distribution table is in 30 minute increments
-        # Create zeroes array over the rampup time and add that to the df_table
-        # table_row_hours = np.arange(0.0, 48.5, 0.5)
-        # table_row_hours
-        
-        # df_table_rampup = pd.DataFrame({
-        #     'hours':table_row_hours, 
-        #     f'{temporal_value_occurrence_column}':0*ramp_up_time_hours
-        # })
-
-        # Append the rampup table to the df_table by adding the value of last row of the rampup table to the hours column of the df_table.
-        # df_table['hours'] = df_table['hours'] + df_table_rampup['hours'].iloc[-1]
-        # df_table = df_table_rampup.append(df_table, ignore_index=True)
-        df_table['hours']
-        
-        # drop final row of rampup table before appending df_table
-        # if ramp_up_time_hours>0:
-        #     df_table_rampup.drop(df_table_rampup.tail(1).index,inplace=True)
-        #     df_table = df_table_rampup.append(df_table, ignore_index=True)
-        #     df_table.fillna(0, inplace=True)
-        
+for temporal_duration_name, temporal_duration_table in temporal_duration_tables.items():
+    print(f'\nProcessing {temporal_duration_name} temporal distribution...')
+    for grid in grids:
+        # get duration from the temporal_duration_name
+        temporal_dur = temporal_duration_name.replace('Distribution', '')
+        # pad with a 0 if the duration is 6h
+        if temporal_dur == '6h':
+            temporal_dur = '06h'
+        # check if the grid dur match the temporal duration, if not then continue to the next grid.
+        if grids[grid]['duration'] != temporal_dur:
+            continue
+        # print (f'\nProcessing {grid} with year: {grids[grid]["year"]} and duration: {grids[grid]["duration"]}')
+        grid_name = grid
+        print(f'\nProcessing {grids[grid]["path"]}...')
+        grid_file = grids[grid]['path']
+        da = rioxarray.open_rasterio(grid_file, masked=True)
+        # # Convert units to inches.
+        da = da/1000
+        # da.squeeze().plot()  # Show the raster in interactive environments
+        if not merged:
+            # clip the raster using clip_shp
+            # open the shapefile using geopandas
+            clip_gdf = gpd.read_file(clip_shp)
+            # set the crs to 4326
+            clip_gdf = clip_gdf.to_crs("EPSG:4326")
+            # set raster to crs EPSG:4326
+            da = da.rio.set_crs("EPSG:4326", inplace=True)
+            # clip the raster using the shapefile
+            from shapely.geometry import mapping
+            da = da.rio.clip(clip_gdf.geometry.apply(mapping),
+                            crs=clip_gdf.crs, drop=True, all_touched=True)
+            
         # %%
-        df_table
+        # import matplotlib.pyplot as plt
+        # da.squeeze().plot(cmap='viridis', vmin=0, vmax=float(da.max()))
+        # plt.title(f"{grid_name} - Precipitation (inches)")
+        # plt.show()
 
         # %%
-        # for each timestep in the table, assign the temporal distribution to the grid.
-        for index, row in df_table.iterrows():
-            timestep = start_time + datetime.timedelta(hours=row['hours'])
+        # Open Temporal Distribution Tables downloaded from NOAA
+        # CSV source: https://hdsc.nws.noaa.gov/pfds/pfds_temporal.html
+        with open(temporal_duration_table, "r") as f:
+            data = f.readlines()
+        # data.strip('\n')
+
+        # Only use the quartiles_wanted to get the table start indexes.
+        table_start_indexes = [i for i,v in enumerate(data) if "CUMULATIVE PERCENTAGES OF TOTAL PRECIPITATION" in v and any(q in v for q in quartiles_wanted)]
+        table_titles = [v for i,v in enumerate(data) if "CUMULATIVE PERCENTAGES OF TOTAL PRECIPITATION FOR" in v and any(q in v for q in quartiles_wanted)]
+        table_titles = [v.split("CUMULATIVE PERCENTAGES OF TOTAL PRECIPITATION FOR ")[-1].replace(" CASES\n","") for v in table_titles]
+
+        # %%
+        # For each quartile table, create a dataframe, assign the temporal distribution to the grid, stack the grids to a single xarray dataset, export a netCDF.
+        length_tables = len(table_start_indexes)
+        for i,table in enumerate(table_start_indexes):
+            table_title = table_titles[i]
+            print(f'Processing {table_title}')
+            # table_headers are +2 rows from the table_start_index row.
+            table_header_index = table + 2
+            # ensure not at end of table before using the next table start index.
+            if i < length_tables - 1:
+                table = data[table_header_index:table_start_indexes[i+1]]
+                table = [v.rstrip("\n") for v in table]
+                # print (*table)
+                df_table = pd.read_csv(StringIO("\n".join(table)), sep=",", header=0)
+            else: # last table just grabs to end of file
+                table = data[table_header_index:]
+                table = [v.rstrip("\n") for v in table]
+                df_table = pd.read_csv(StringIO("\n".join(table)), sep=",", header=0)
             
-            da_copy = da.copy(deep=True)
+            # collecting data arrays for each timestep to stack into a single dataset.
+            list_da = []
+            # starting data at epoch time + 0.25 hours = 01JAN1970 00:15:00. HEC-Vortex Timeshift bug workaround. DSS starTime will be 01JAN1970 00:00:00.
+            # start_time = datetime.datetime.utcfromtimestamp(0) +  datetime.timedelta(hours=0.25)
+            start_time = datetime.datetime(2000, 1, 1, 0, 0, 0)
             
-            # Convert Units to the {temporal_value_occurrence_column} Occurance Temporal Value increment to create a dataarray to be stacked into a dataset with a time dimension.
-            da_copy = da_copy*(row[f'{temporal_value_occurrence_column}']/100)
-            #  Rename data array data variable
-            da_copy = da_copy.rename('PrecipCumulative')
-            # Assign time coordinate  
-            da_copy = da_copy.assign_coords(time = timestep)
-            da_copy = da_copy.expand_dims(dim="time")
-            # Append to list
-            list_da.append(da_copy)
+            
+            # ramp_up_table_rows = ramp_up_time_hours * 2 # temporal distribution table is in 30 minute increments
+            # Create zeroes array over the rampup time and add that to the df_table
+            # table_row_hours = np.arange(0.0, 48.5, 0.5)
+            # table_row_hours
+            
+            # df_table_rampup = pd.DataFrame({
+            #     'hours':table_row_hours, 
+            #     f'{temporal_value_occurrence_column}':0*ramp_up_time_hours
+            # })
 
-        # stack the dataarrays into a single dataset.
-        # ds = xr.combine_by_coords(list_da)
-        ds = xr.concat(list_da, dim="time")
-        ds = ds.to_dataset(name='PrecipCumulative')
-        
-        # Remove band dimension.
-        ds = ds.squeeze()
-        ds = ds.drop_vars('band')
+            # Append the rampup table to the df_table by adding the value of last row of the rampup table to the hours column of the df_table.
+            # df_table['hours'] = df_table['hours'] + df_table_rampup['hours'].iloc[-1]
+            # df_table = df_table_rampup.append(df_table, ignore_index=True)
+            # df_table['hours']
+            
+            # drop final row of rampup table before appending df_table
+            # if ramp_up_time_hours>0:
+            #     df_table_rampup.drop(df_table_rampup.tail(1).index,inplace=True)
+            #     df_table = df_table_rampup.append(df_table, ignore_index=True)
+            #     df_table.fillna(0, inplace=True)
+            
+            # %%
+            df_table
 
-        # Create Precip Incremental variable
-        ds['PrecipInc'] = ds['PrecipCumulative'].diff(dim='time', label='upper')
+            # %%
+            # for each timestep in the table, assign the temporal distribution to the grid.
+            for index, row in df_table.iterrows():
+                timestep = start_time + datetime.timedelta(hours=row['hours'])
+                
+                da_copy = da.copy(deep=True)
+                
+                # Convert Units to the {temporal_value_occurrence_column} Occurance Temporal Value increment to create a dataarray to be stacked into a dataset with a time dimension.
+                da_copy = da_copy*(row[f'{temporal_value_occurrence_column}']/100)
+                #  Rename data array data variable
+                da_copy = da_copy.rename('PrecipCumulative')
+                # Assign time coordinate  
+                da_copy = da_copy.assign_coords(time = timestep)
+                da_copy = da_copy.expand_dims(dim="time")
+                # Append to list
+                list_da.append(da_copy)
 
-        # CF Conventions
-        ds = ds.rename({
-            'x':'longitude',
-            'y':'latitude'
-        })
+            # stack the dataarrays into a single dataset.
+            # ds = xr.combine_by_coords(list_da)
+            ds = xr.concat(list_da, dim="time")
+            ds = ds.to_dataset(name='PrecipCumulative')
+            
+            # Remove band dimension.
+            ds = ds.squeeze()
+            ds = ds.drop_vars('band')
 
-        ds['latitude'].attrs['units'] = 'degrees_north'
-        ds['latitude'].attrs['standard_name'] = 'latitude'
-        ds['latitude'].attrs['long_name'] = 'latitude'
-        ds['latitude'].attrs['axis'] = 'Y'
+            # Create Precip Incremental variable
+            ds['PrecipInc'] = ds['PrecipCumulative'].diff(dim='time', label='upper')
 
-        ds['longitude'].attrs['units'] = 'degrees_east'
-        ds['longitude'].attrs['standard_name'] = 'longitude'
-        ds['longitude'].attrs['long_name'] = 'longitude'
-        ds['longitude'].attrs['axis'] = 'X'
+            # CF Conventions
+            ds = ds.rename({
+                'x':'longitude',
+                'y':'latitude'
+            })
 
-        ds['time'].attrs['standard_name'] = 'time'
-        ds['time'].attrs['long_name'] = 'time'
-        ds['time'].attrs['axis'] = 'T'
+            ds['latitude'].attrs['units'] = 'degrees_north'
+            ds['latitude'].attrs['standard_name'] = 'latitude'
+            ds['latitude'].attrs['long_name'] = 'latitude'
+            ds['latitude'].attrs['axis'] = 'Y'
 
-        ds['PrecipCumulative'].attrs['units'] = 'inches'
-        ds['PrecipCumulative'].attrs['long_name'] = 'Cumulative Precipitation'
-        
-        ds['PrecipInc'].attrs['units'] = 'inches'
-        ds['PrecipInc'].attrs['long_name'] = 'Incremental Precipitation'
-        
-        # Add temporal distribution to the dataset.
-        ds_td = df_table[['hours',f'{temporal_value_occurrence_column}']].to_xarray()
-        ds_td.expand_dims(dim="time")
-        ds_td["time"] = ds.time
-        ds_td[f'{temporal_value_occurrence_column}'] = ds_td[f'{temporal_value_occurrence_column}'].swap_dims({"index":"time"})
-        ds_td = ds_td.drop_vars("hours")
-        ds_td = ds_td.drop_vars("index")
-        ds_td = ds_td.rename({f"{temporal_value_occurrence_column}":"TemporalDistribution"})
-        ds = xr.merge([ds,ds_td])
-        ds['TemporalDistribution'].attrs['units'] = 'percent'
-        ds['TemporalDistribution'].attrs['long_name'] = 'Temporal Distribution Culuative Percentage'
-        ds['TemporalDistribution'].attrs['occurence'] = f'{temporal_value_occurrence_column}'
-        ds['TemporalDistribution'].attrs['temporalDuration'] = temporal_duration_name
-        ds['TemporalDistribution'].attrs['source'] = f'NOAA Atlas 14: {temporal_duration_table}'
+            ds['longitude'].attrs['units'] = 'degrees_east'
+            ds['longitude'].attrs['standard_name'] = 'longitude'
+            ds['longitude'].attrs['long_name'] = 'longitude'
+            ds['longitude'].attrs['axis'] = 'X'
 
-        # Export to netCDF
-        # output_file = rf"output\{region['name']}\nc\Atlas14_{region['name']}_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
-        output_file = rf"output\{project_name}\nc\Atlas14_{project_name}{grids[grid]['year_int']}yr_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
-        # create output directory if it does not exist
-        os.makedirs(os.path.dirname(output_file), exist_ok=True)
-        print(f'Exporting to {output_file}')
-        ds.to_netcdf(output_file)
+            ds['time'].attrs['standard_name'] = 'time'
+            ds['time'].attrs['long_name'] = 'time'
+            ds['time'].attrs['axis'] = 'T'
 
-        # Next Step is to run the Jython script to convert the netCDF to a DSS file.
+            ds['PrecipCumulative'].attrs['units'] = 'inches'
+            ds['PrecipCumulative'].attrs['long_name'] = 'Cumulative Precipitation'
+            ds['PrecipCumulative'].attrs['cell_methods'] = 'time: sum'
+            
+            ds['PrecipInc'].attrs['units'] = 'inches'
+            ds['PrecipInc'].attrs['long_name'] = 'Incremental Precipitation'
+            ds['PrecipInc'].attrs['cell_methods'] = 'time: sum'
+            
+            # Add temporal distribution to the dataset.
+            ds_td = df_table[['hours',f'{temporal_value_occurrence_column}']].to_xarray()
+            ds_td.expand_dims(dim="time")
+            ds_td["time"] = ds.time
+
+            ds_td[f'{temporal_value_occurrence_column}'] = ds_td[f'{temporal_value_occurrence_column}'].swap_dims({"index":"time"})
+            ds_td = ds_td.drop_vars("hours")
+            ds_td = ds_td.drop_vars("index")
+            ds_td = ds_td.rename({f"{temporal_value_occurrence_column}":"TemporalDistribution"})
+            ds = xr.merge([ds,ds_td])
+            ds['TemporalDistribution'].attrs['units'] = 'percent'
+            ds['TemporalDistribution'].attrs['long_name'] = 'Temporal Distribution Culuative Percentage'
+            ds['TemporalDistribution'].attrs['occurence'] = f'{temporal_value_occurrence_column}'
+            ds['TemporalDistribution'].attrs['temporalDuration'] = temporal_duration_name
+            ds['TemporalDistribution'].attrs['source'] = f'NOAA Atlas 14: {temporal_duration_table}'
+
+            # add time bounds
+            ds['time'].attrs['bounds'] = 'time_bnds'
+            # the time bounds are time1, time2, time2, time3, time3, time4, ...
+            time_bnds = np.empty((len(ds['time'])-1, 2), dtype='datetime64[ns]')
+            time_bnds[:, 0] = ds['time'].values[:-1]
+            time_bnds[:, 1] = ds['time'].values[1:]
+            time_bnds = xr.DataArray(time_bnds, dims=['time', 'bnds'], coords={'time': ds['time'].values[:-1], 'bnds': [0, 1]})
+            time_bnds.name = 'time_bnds'
+            ds['time_bnds'] = time_bnds
+            ds['time_bnds'].attrs['standard_name'] = 'time_bnds'
+            ds['time_bnds'].attrs['long_name'] = 'Time Bounds'
+            ds['time_bnds'].attrs['description'] = 'Start and end of each time period'
+
+
+            # Export to netCDF
+            # output_file = rf"output\{region['name']}\nc\Atlas14_{region['name']}_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
+            output_file = rf"output\{project_name}\nc\Atlas14_{project_name}{grids[grid]['year_int']}yr_{grids[grid]['duration']}Storm_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
+            # create output directory if it does not exist
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+            print(f'Exporting to {output_file}')
+            ds.to_netcdf(output_file)
+
+            # Next Step is to run the Jython script to convert the netCDF to a DSS file.
     # %%
     ds
     # %%
-    ds['PrecipCumulative'].isel(time=20).plot()
+    # ds['PrecipCumulative'].isel(time=10).plot()
 
     # %%
-    ds['PrecipInc'].sel(latitude=36.2, longitude=-90, method='nearest').plot()
+    # ds['PrecipInc'].sel(latitude=36.2, longitude=-90, method='nearest').plot()
 # %%
