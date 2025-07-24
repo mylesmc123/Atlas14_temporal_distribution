@@ -59,7 +59,7 @@ for i, year in enumerate(years_padded):
             }
 
 # temporal distribution durations wanted
-temporal_durations_wanted = ['06h', '12h', '24h']
+temporal_durations_wanted = ['6h', '12h', '24h']
 
 temporal_duration_tables = {
     f'{dur}Distribution': f'data/{region["name"]}/{region["abbrev"]}_{region["area"]}_{dur}_temporal.csv'
@@ -70,13 +70,16 @@ temporal_duration_tables = {
 # temporal_duration_name = '24hDistribution'
 # %%
 for temporal_duration_name, temporal_duration_table in temporal_duration_tables.items():
+    print(f'\nProcessing {temporal_duration_name} temporal distribution...')
     for grid in grids:
-        ds = rioxarray.open_rasterio(grids[grid]['path'], masked=True)
-        print(grids[grid]['year'])
-
-    # %%
-
-    for grid in grids:
+        # get duration from the temporal_duration_name
+        temporal_dur = temporal_duration_name.replace('Distribution', '')
+        # pad with a 0 if the duration is 6h
+        if temporal_dur == '6h':
+            temporal_dur = '06h'
+        # check if the grid dur match the temporal duration, if not then continue to the next grid.
+        if grids[grid]['duration'] != temporal_dur:
+            continue
         # print (f'\nProcessing {grid} with year: {grids[grid]["year"]} and duration: {grids[grid]["duration"]}')
         grid_name = grid
         print(f'\nProcessing {grids[grid]["path"]}...')
@@ -255,7 +258,7 @@ for temporal_duration_name, temporal_duration_table in temporal_duration_tables.
 
             # Export to netCDF
             # output_file = rf"output\{region['name']}\nc\Atlas14_{region['name']}_{grid_name}_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
-            output_file = rf"output\{project_name}\nc\Atlas14_{project_name}{grids[grid]['year_int']}yr_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
+            output_file = rf"output\{project_name}\nc\Atlas14_{project_name}{grids[grid]['year_int']}yr_{grids[grid]['duration']}Storm_{temporal_duration_name}_{temporal_value_occurrence_name}_{table_title}.nc"
             # create output directory if it does not exist
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
             print(f'Exporting to {output_file}')
@@ -265,8 +268,8 @@ for temporal_duration_name, temporal_duration_table in temporal_duration_tables.
     # %%
     ds
     # %%
-    ds['PrecipCumulative'].isel(time=20).plot()
+    # ds['PrecipCumulative'].isel(time=10).plot()
 
     # %%
-    ds['PrecipInc'].sel(latitude=36.2, longitude=-90, method='nearest').plot()
+    # ds['PrecipInc'].sel(latitude=36.2, longitude=-90, method='nearest').plot()
 # %%

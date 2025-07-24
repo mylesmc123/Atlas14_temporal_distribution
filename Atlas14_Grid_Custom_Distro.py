@@ -23,38 +23,97 @@ region = {
 years_padded = ['001', '002', '005', '010', '025', '050', '100', '200', '500']
 years_int = [int(year) for year in years_padded] 
 
-precip_durations = ['24h']
-temporal_duration_name = '24hDistribution'
+precip_durations = ['06h', '24h']
+temporal_durations = ['06h', '24h']
 
-scs_type_II_temporal_distribution = {
-    0: 0.00,
-    1: 0.20,
-    2: 0.50,
-    3: 1.10,
-    4: 2.00,
-    5: 3.80,
-    6: 6.70,
-    7: 11.30,
-    8: 18.60,
-    9: 30.00,
-    10: 47.60,
-    11: 62.20,
-    12: 75.00,
-    13: 84.30,
-    14: 90.40,
-    15: 94.10,
-    16: 96.30,
-    17: 97.60,
-    18: 98.40,
-    19: 98.90,
-    20: 99.30,
-    21: 99.50,
-    22: 99.70,
-    23: 99.80,
-    24: 100.00
+
+# Cumulative distribution tables, the keys are hours
+scs_type_II_6hr_temporal_distribution = {
+    0.00: 0.00,
+    0.25: 1.00,
+    0.50: 2.20,
+    0.75: 4.10,
+    1.00: 7.00,
+    1.25: 10.80,
+    1.50: 15.50,
+    1.75: 21.00,
+    2.00: 27.60,
+    2.25: 35.10,
+    2.50: 43.30,
+    2.75: 51.90,
+    3.00: 60.70,
+    3.25: 69.10,
+    3.50: 76.80,
+    3.75: 83.10,
+    4.00: 88.00,
+    4.25: 91.80,
+    4.50: 94.70,
+    4.75: 96.70,
+    5.00: 98.00,
+    5.25: 98.90,
+    5.50: 99.50,
+    5.75: 99.80,
+    6.00: 100.00
 }
 
-hms_temporal_distribution = {
+hms_6hr_temporal_distribution = {
+    0.00: 0.00,
+    0.25: 0.93,
+    0.50: 1.92,
+    0.75: 3.00,
+    1.00: 4.16,
+    1.25: 5.45,
+    1.50: 6.88,
+    1.75: 9.10,
+    2.00: 11.63,
+    2.25: 14.93,
+    2.50: 18.99,
+    2.75: 26.05,
+    3.00: 39.71,
+    3.25: 70.84,
+    3.50: 79.41,
+    3.75: 84.06,
+    4.00: 87.69,
+    4.25: 90.43,
+    4.50: 92.79,
+    4.75: 94.31,
+    5.00: 95.67,
+    5.25: 96.89,
+    5.50: 98.01,
+    5.75: 99.04,
+    6.00: 100.00
+}
+
+scs_type_II_24hr_temporal_distribution = {
+    0: 0,
+    1: 0.2,
+    2: 0.5,
+    3: 1.1,
+    4: 2,
+    5: 3.8,
+    6: 6.7,
+    7: 11.3,
+    8: 18.6,
+    9: 30,
+    10: 47.6,
+    11: 62.2,
+    12: 75,
+    13: 84.3,
+    14: 90.4,
+    15: 94.1,
+    16: 96.3,
+    17: 97.6,
+    18: 98.4,
+    19: 98.9,
+    20: 99.3,
+    21: 99.5,
+    22: 99.7,
+    23: 99.8,
+    24: 100
+}
+
+# Updated HMS 24hr temporal distribution values
+hms_24hr_temporal_distribution = {
     0.0: 0.00,
     0.5: 0.30,
     1.0: 0.62,
@@ -107,8 +166,22 @@ hms_temporal_distribution = {
 }
 
 tables = {
-    'SCS Type II': scs_type_II_temporal_distribution,   
-    'HMS': hms_temporal_distribution
+    'SCS Type II 24hr': {
+        'name':scs_type_II_24hr_temporal_distribution,
+        'dur': '24h'
+    },
+    'HMS 24hr': {
+        'name': hms_24hr_temporal_distribution,
+        'dur': '24h'
+    },
+    'SCS Type II 6hr': {
+        'name': scs_type_II_6hr_temporal_distribution,
+        'dur': '06h'
+    },
+    'HMS 6hr': {
+        'name': hms_6hr_temporal_distribution,
+        'dur': '06h'
+    }
 }
 
 grids = {}
@@ -131,28 +204,41 @@ for i, year in enumerate(years_padded):
             }
 
 # %%
-for grid in grids:
-    grid_name = grid
-    print(f'\nProcessing {grids[grid]['path']}...')
-    grid_file = grids[grid]['path']
-    da = rioxarray.open_rasterio(grid_file, masked=True)
-    # # Convert units to inches.
-    da = da/1000
-    # da.squeeze().plot()  # Show the raster in interactive environments
-    if not merged:
-        # clip the raster using clip_shp
-        # open the shapefile using geopandas
-        clip_gdf = gpd.read_file(clip_shp)
-        # set the crs to 4326
-        clip_gdf = clip_gdf.to_crs("EPSG:4326")
-        # set raster to crs EPSG:4326
-        da = da.rio.set_crs("EPSG:4326", inplace=True)
-        # clip the raster using the shapefile
-        from shapely.geometry import mapping
-        da = da.rio.clip(clip_gdf.geometry.apply(mapping),
-                        crs=clip_gdf.crs, drop=True, all_touched=True)
-        
-        for tables_name, table in tables.items():
+for dur in precip_durations:
+    temporal_duration_name = f'{dur}Distribution'
+    print(f'\nProcessing {temporal_duration_name} temporal distribution...')
+    for grid in grids:
+        # Check if the grid duration matches the precip duration
+        if grids[grid]['duration'] != dur:
+            print(f'Skipping {grid} with duration {grids[grid]["duration"]} for {temporal_duration_name}.')
+            continue
+        grid_name = grid
+        print(f'\nProcessing {grids[grid]['path']}...')
+        grid_file = grids[grid]['path']
+        da = rioxarray.open_rasterio(grid_file, masked=True)
+        # # Convert units to inches.
+        da = da/1000
+        # da.squeeze().plot()  # Show the raster in interactive environments
+        if not merged:
+            # clip the raster using clip_shp
+            # open the shapefile using geopandas
+            clip_gdf = gpd.read_file(clip_shp)
+            # set the crs to 4326
+            clip_gdf = clip_gdf.to_crs("EPSG:4326")
+            # set raster to crs EPSG:4326
+            da = da.rio.set_crs("EPSG:4326", inplace=True)
+            # clip the raster using the shapefile
+            from shapely.geometry import mapping
+            da = da.rio.clip(clip_gdf.geometry.apply(mapping),
+                            crs=clip_gdf.crs, drop=True, all_touched=True)
+            
+        for tables_name, table_info in tables.items():
+            # check if the temporal distribution duration matches the storm duration
+            print (f"temporal_dur = {table_info['dur']}, storm_dur = {grids[grid]['duration']}")
+            if table_info['dur'] != grids[grid]['duration']:
+                print(f'Skipping {tables_name} with duration {table_info["dur"]} for {grid_name} with duration {grids[grid]["duration"]}.\n')
+                continue
+            table = table_info['name']
             print(f'Applying {tables_name} temporal distribution...')
             # put the temporal distribution table into a pandas DataFrame
             df_table = pd.DataFrame.from_dict(table, orient='index', columns=['value'])
@@ -244,7 +330,7 @@ for grid in grids:
             ds['time_bnds'].attrs['description'] = 'Start and end of each time period'
 
             # Export to netCDF
-            output_file = rf"output\{project_name}\nc\Atlas14_{project_name}{grids[grid]['year_int']}yr_{temporal_duration_name}_{tables_name}.nc"
+            output_file = rf"output\{project_name}\nc\Atlas14_{project_name}{grids[grid]['year_int']}yr_{grids[grid]['duration']}Storm_{temporal_duration_name}_{tables_name}.nc"
             # create output directory if it does not exist
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
             print(f'Exporting to {output_file}')
