@@ -1,0 +1,50 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": "${command:pickArgs}"
+        },
+        {
+            "name": "Lawton Atlas14_Custom_Grid_Distro.py",
+            "args": [
+                "--project_name", "Lawton",
+                // "--merged", the arg type is boolean called stored_true, so it can be omitted if false
+                "--clip_shp", "boundaries/Lawton_BB_StatePlaneOK.shp", // Only required if --merged is false
+                "--dist_table", "data/custom_temporal_dists.json",
+                "--region", "Midwest",
+                "--years_wanted_list", "['001', '002', '005', '010', '025', '050', '100', '200', '500']",
+                "--precip_durations_list", "['06h', '24h']"
+            ],
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/Atlas14_Grid_Custom_Distro.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "I57 Atlas14_Custom_Grid_Distro.py",
+            "args": [
+                "--project_name", "I57_",
+                "--merged", // the arg type is boolean called stored_true, so it can be omitted if false
+                // "--clip_shp", "boundaries/Lawton_BB_StatePlaneOK.shp", // Only required if --merged is false
+                "--dist_table", "data/custom_temporal_dists.json",
+                "--region", "Southeast",
+                "--years_wanted_list", "['001', '002', '005', '010', '025', '050', '100', '200', '500']",
+                "--precip_durations_list", "['24h']"
+            ],
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/Atlas14_Grid_Custom_Distro.py",
+            "console": "integratedTerminal"
+        },
+
+
+    ]
+}

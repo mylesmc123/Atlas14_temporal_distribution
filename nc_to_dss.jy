@@ -6,6 +6,8 @@ import os
 # cd C:\Program Files\HEC\HEC-HMS\4.12
 # HEC-HMS.cmd -script "C:\py\Atlas14_temporal_distribution\nc_to_dss.jy"
 
+proj = "Lawton"
+
 variables = ['PrecipInc']
 
 # clip_shp = r"V:\projects\p00659_dec_glo_phase3\01_processing\GIS\Precip_Extents.shp"
@@ -21,11 +23,12 @@ geo_options = {
 }
 
 # in_dir = r"Z:\py\Atlas14_temporal_distribution\output\Texas\nc"
-in_dir = r"C:\py\Atlas14_temporal_distribution\output\Lawton\nc"
+in_dir = r"C:\py\Atlas14_temporal_distribution\output\%s\nc" % proj
 f = glob.glob(in_dir+"//*.nc")
 print ('*.nc Files found:' + str(len(f)))
 
-out_dir = r"C:\py\Atlas14_temporal_distribution\output\Lawton\dss"
+
+out_dir = r"C:\py\Atlas14_temporal_distribution\output\%s\dss" % proj
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
