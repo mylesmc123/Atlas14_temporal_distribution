@@ -279,9 +279,6 @@ df_all
 # anywhere except the first row, if the value is 0, then replace it with 100
 df_all.iloc[1:, 1:] = df_all.iloc[1:, 1:].replace(0, 100.0)
 df_all
-
-# export df_all to a csv file
-df_all.to_csv("temporal_distributions_all.csv", index=False, float_format='%.4f')
 # %%
 # Plot the temporal distributions all together
 plt.figure(figsize=(12, 8))
@@ -447,67 +444,9 @@ for i, col in enumerate(custom_order):
 # use the custom order for the legend
 fig_10_percent_24h.update_layout(legend=dict(traceorder="normal"))
 
-# add a label at the third hour mark for the line "24hr ALL 10%" that says "All 10%"
-fig_10_percent_24h.add_annotation(
-    x=3,
-    y=fig_10_percent_24h.data[4].y[6],  # Use the correct trace and index for "ALL 10%"
-    text="All Cases",
-    showarrow=True,
-    arrowhead=2,
-    ax=60,
-    ay=40  # Negative ay moves the label above the trace
-)
-
 # update the x-axis labels to show for each value
 fig_10_percent_24h.update_xaxes(tickmode='linear', tick0=0, dtick=1)
-
 fig_10_percent_24h.write_html("Atlas14_10percent_24h.html")
 # %%
 # Create a plot for the Q1 10% Occurence across all durations
 # columns will look like: Atlas 14 Storm6hDistribution Q1 10, Atlas 14 Storm12hDistribution Q1 10, Atlas 14 Storm24hDistribution Q1 10
-# use the csv file: temporal_distributions_all.csv instead of df_all 
-# because we are using a hybrid ipython and script approach here 
-# and the csv will have all the data we need.
-df_all_dists = pd.read_csv("temporal_distributions_all.csv")
-df_q1_10_percent_all_durations = df_all_dists[["time", "Atlas 14 Storm6hDistribution Q1 10", "Atlas 14 Storm12hDistribution Q1 10", "Atlas 14 Storm24hDistribution Q1 10"]]
-# Rename the columns to match the pattern "6h Q1 10%", etc.
-# The current name looks like: Atlas 14 Storm6hDistribution Q1 10 
-# and we want it to look like: 6h Q1 10%
-df_q1_10_percent_all_durations.columns = ["time"] + [
-    f"{col.split('Storm')[1].split('Distribution')[0].replace('h', 'h').strip()} {col.split()[-2]} {col.split()[-1]}%"
-    for col in df_q1_10_percent_all_durations.columns[1:]
-]
-
-# Reverse the columns (except 'time') for plotting traces in reverse order
-columns_reversed = ["time"] + df_q1_10_percent_all_durations.columns[1:][::-1].tolist()
-fig_q1_10_percent_all_durations = px.line(
-    df_q1_10_percent_all_durations[columns_reversed],
-    x="time",
-    y=columns_reversed[1:],
-    title="Atlas 14 Temporal Distributions for Q1 - 10% Occurrence Across All Durations"
-)
-fig_q1_10_percent_all_durations.update_layout(
-    xaxis_title="Time (hours)",
-    yaxis_title="Precipitation (%)",
-    legend_title="Distribution"
-)
-# make the fonts all larger by 2x.
-fig_q1_10_percent_all_durations.update_layout(
-    font=dict(
-        size=32,
-    )
-)
-# # make all the lines dotted
-# fig_q1_10_percent_all_durations.update_traces(line=dict(dash='dot'))
-
-# Use a good color scale for 3 colors
-colors = px.colors.qualitative.Set1[:3]
-num_lines = len(df_q1_10_percent_all_durations.columns) - 1
-for i, col in enumerate(df_q1_10_percent_all_durations.columns[1:]):
-    color_index = int(i / (num_lines - 1) * (len(colors) - 1))
-    fig_q1_10_percent_all_durations.update_traces(selector=dict(name=col), line=dict(color=colors[color_index], width=4))
-
-# update the x-axis labels to show for each value
-fig_q1_10_percent_all_durations.update_xaxes(tickmode='linear', tick0=0, dtick=1)
-fig_q1_10_percent_all_durations.write_html("Atlas14_Q1_10percent_all_durations.html")
-# %%
