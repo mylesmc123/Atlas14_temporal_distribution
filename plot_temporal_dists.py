@@ -500,8 +500,14 @@ fig_q1_10_percent_all_durations.update_layout(
 # # make all the lines dotted
 # fig_q1_10_percent_all_durations.update_traces(line=dict(dash='dot'))
 
+# reverse the legend order so 6h is on top
+fig_q1_10_percent_all_durations.update_layout(legend=dict(traceorder="reversed"))
+
 # Use a good color scale for 3 colors
-colors = px.colors.qualitative.Set1[:3]
+# Use a colorblind safe palette for 3 colors, but make the blue a little darker
+colors = px.colors.qualitative.Safe[:3]
+# Override the blue with a darker shade
+colors[0] = "#1f2a7c"  # Darker blue
 num_lines = len(df_q1_10_percent_all_durations.columns) - 1
 for i, col in enumerate(df_q1_10_percent_all_durations.columns[1:]):
     color_index = int(i / (num_lines - 1) * (len(colors) - 1))
@@ -510,4 +516,44 @@ for i, col in enumerate(df_q1_10_percent_all_durations.columns[1:]):
 # update the x-axis labels to show for each value
 fig_q1_10_percent_all_durations.update_xaxes(tickmode='linear', tick0=0, dtick=1)
 fig_q1_10_percent_all_durations.write_html("Atlas14_Q1_10percent_all_durations.html")
+# %%
+# Create a plot for HMS, SCS Type II, and Atlas 14 Q1 10% for 24h duration
+# columns will look like: HMS 24hr, SCS Type II 24hr, Atlas 14 Storm24hDistribution Q1 10
+# use df_all_dists to get the data
+df_hms_scs_atlas_q1_10_24h = df_all_dists[["time", "Atlas 14 Storm24hDistribution Q1 10", "HMS 24hr", "SCS Type II 24hr"]]
+# Rename the columns to match the pattern "HMS 24hr", "SCS Type II 24hr", "Atlas 14 Q1 10%"
+df_hms_scs_atlas_q1_10_24h.columns = ["time", "Atlas 14 Q1 10%", "NRCS MSE3 24hr", "SCS Type II 24hr"]
+fig_hms_scs_atlas_q1_10_24h = px.line(
+    df_hms_scs_atlas_q1_10_24h,
+    x="time",
+    y=["NRCS MSE3 24hr", "SCS Type II 24hr", "Atlas 14 Q1 10%"],
+    title="Atlas 14 Q1 10%, NRCS MSE3, and SCS Type II for 24h Duration"
+)
+fig_hms_scs_atlas_q1_10_24h.update_layout(
+    xaxis_title="Time (hours)",
+    yaxis_title="Precipitation (%)",
+    legend_title="Distribution"
+)
+# make the fonts all larger by 2x.
+fig_hms_scs_atlas_q1_10_24h.update_layout(
+    font=dict(
+        size=32,
+    )
+)
+
+# reverse the legend order so Atlas 14 is on top
+fig_hms_scs_atlas_q1_10_24h.update_layout(legend=dict(traceorder="reversed"))
+
+# Use a good color scale for 3 colors
+# Use a colorblind safe palette for 3 colors, but make the blue a little darker
+colors = px.colors.qualitative.Safe[:3]
+# Override the blue with a darker shade
+colors[0] = "#1f2a7c"  # Darker blue
+num_lines = len(df_hms_scs_atlas_q1_10_24h.columns) - 1
+for i, col in enumerate(df_hms_scs_atlas_q1_10_24h.columns[1:]):
+    color_index = int(i / (num_lines - 1) * (len(colors) - 1))
+    fig_hms_scs_atlas_q1_10_24h.update_traces(selector=dict(name=col), line=dict(color=colors[color_index], width=4))
+# update the x-axis labels to show for each value
+fig_hms_scs_atlas_q1_10_24h.update_xaxes(tickmode='linear', tick0=0, dtick=1)
+fig_hms_scs_atlas_q1_10_24h.write_html("temporal_dists_compare_sources.html")
 # %%
