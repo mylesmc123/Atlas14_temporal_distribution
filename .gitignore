@@ -3,3 +3,4 @@
 **/*.lnk
 **/*.h5
 __pycache__/*.pyc
+**/*.*.aux.xml
