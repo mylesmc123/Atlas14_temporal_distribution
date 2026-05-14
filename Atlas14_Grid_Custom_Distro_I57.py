@@ -4,8 +4,6 @@ import datetime
 import rioxarray
 import pandas as pd
 import numpy as np
-from io import StringIO
-from tqdm import tqdm
 import os
 import geopandas as gpd
 
@@ -24,91 +22,90 @@ years_padded = ['001', '002', '005', '010', '025', '050', '100', '200', '500']
 years_int = [int(year) for year in years_padded] 
 
 precip_durations = ['24h']
-temporal_duration_name = '24hDistribution'
 
-scs_type_II_temporal_distribution = {
-    0: 0,
-    1: 0.2,
-    2: 0.3,
-    3: 0.6,
-    4: 0.9,
-    5: 1.8,
-    6: 2.9,
-    7: 4.6,
-    8: 7.3,
-    9: 11.4,
-    10: 17.6,
-    11: 14.6,
-    12: 12.8,
-    13: 9.3,
-    14: 6.1,
-    15: 3.7,
-    16: 2.2,
-    17: 1.3,
-    18: 0.8,
-    19: 0.5,
-    20: 0.4,
-    21: 0.2,
-    22: 0.2,
-    23: 0.1,
-    24: 0.2
+temporal_distribution_csv = r'data/HydroCad Rainfall Temporal Distribtions.csv'
+temporal_distribution_hours_column = 'Time (hours)'
+# Match normalized CSV headers to output filename aliases.
+temporal_distribution_header_aliases = {
+    'MSE1 24-hr (depth)': 'MSE1_24hr',
+    'MSE2 24-hr (depth)': 'MSE2_24hr',
+    'MSE3 24-hr (depth)': 'MSE3_24hr',
+    'MSE4 24-hr (depth)': 'MSE4_24hr',
+    'MSE5 24-hr (depth)': 'MSE5_24hr',
+    'MSE6 24-hr (depth)': 'MSE6_24hr',
+    'Type I 24-hr (depth)': 'TypeI_24hr',
+    'Type IA 24-hr (depth)': 'TypeIA_24hr',
+    'Type II 6-hr (depth)': 'TypeII_6hr',
+    'Type II 12-hr (depth)': 'TypeII_12hr',
+    'Type II 24-hr (depth)': 'TypeII_24hr',
+    'Type III 6-hr (depth)': 'TypeIII_6hr',
+    'Type III 12-hr (depth)': 'TypeIII_12hr',
+    'Type III 24-hr (depth)': 'TypeIII_24hr',
 }
 
-hms_temporal_distribution = {
-    0: 0.00,
-    1: 0.30,
-    2: 0.62,
-    3: 0.94,
-    4: 1.28,
-    5: 1.64,
-    6: 2.01,
-    7: 2.40,
-    8: 2.81,
-    9: 3.24,
-    10: 3.70,
-    11: 4.18,
-    12: 4.70,
-    13: 5.22,
-    14: 5.78,
-    15: 6.39,
-    16: 7.06,
-    17: 7.81,
-    18: 8.65,
-    19: 10.21,
-    20: 12.01,
-    21: 14.18,
-    22: 17.96,
-    23: 23.66,
-    24: 36.54,
-    25: 73.43,
-    26: 80.60,
-    27: 84.95,
-    28: 87.38,
-    29: 89.35,
-    30: 91.02,
-    31: 91.92,
-    32: 92.71,
-    33: 93.42,
-    34: 94.06,
-    35: 94.64,
-    36: 95.18,
-    37: 95.72,
-    38: 96.22,
-    39: 96.69,
-    40: 97.13,
-    41: 97.55,
-    42: 97.95,
-    43: 98.33,
-    44: 98.69,
-    45: 99.04,
-    46: 99.37,
-    47: 99.69,
-    48: 100.00
-}
+# Set to None to use all distributions, or provide a list of aliases to run a subset.
+selected_temporal_distribution_aliases = [
+    'TypeII_24hr',
+    'MSE5_24hr',
+]
+
+
+def normalize_csv_headers(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df.columns = df.columns.str.replace(r'\s+', ' ', regex=True).str.strip()
+    return df
+
+temporal_distribution_df = normalize_csv_headers(pd.read_csv(temporal_distribution_csv))
+
+if selected_temporal_distribution_aliases is None:
+    selected_temporal_distribution_header_aliases = temporal_distribution_header_aliases
+else:
+    available_aliases = set(temporal_distribution_header_aliases.values())
+    selected_aliases = set(selected_temporal_distribution_aliases)
+    missing_aliases = sorted(selected_aliases - available_aliases)
+    if missing_aliases:
+        raise KeyError(f'Missing temporal distribution aliases: {missing_aliases}')
+
+    selected_temporal_distribution_header_aliases = {
+        column_name: alias
+        for column_name, alias in temporal_distribution_header_aliases.items()
+        if alias in selected_aliases
+    }
+
+if temporal_distribution_hours_column not in temporal_distribution_df.columns:
+    raise KeyError(f'Missing hours column: {temporal_distribution_hours_column}')
+
+missing_distribution_columns = [
+    column_name for column_name in selected_temporal_distribution_header_aliases
+    if column_name not in temporal_distribution_df.columns
+]
+
+if missing_distribution_columns:
+    raise KeyError(f'Missing temporal distribution columns: {missing_distribution_columns}')
+
+
+def sanitize_output_name(name: str) -> str:
+    return (
+        name.replace('/', '_')
+            .replace('\\', '_')
+            .replace('(', '')
+            .replace(')', '')
+            .replace('-', '_')
+            .replace(' ', '_')
+    )
+
 
 tables = {
-    'SCS Type II': scs_type_II_temporal_distribution,   
-    'HMS': hms_temporal_distribution
+    column_name: {
+        'alias': alias,
+        'table': temporal_distribution_df[
+            [temporal_distribution_hours_column, column_name]
+        ].rename(columns={
+            temporal_distribution_hours_column: 'hours',
+            column_name: 'value',
+        })
+    }
+    for column_name, alias in selected_temporal_distribution_header_aliases.items()
 }
 
 grids = {}
@@ -134,7 +131,7 @@ for i, year in enumerate(years_padded):
 # %%
 for grid in grids:
     grid_name = grid
-    print(f'\nProcessing {grids[grid]['path']}...')
+    print(f"\nProcessing {grids[grid]['path']}...")
     grid_file = grids[grid]['path']
     da = rioxarray.open_rasterio(grid_file, masked=True)
     # # Convert units to inches.
@@ -153,12 +150,17 @@ for grid in grids:
         da = da.rio.clip(clip_gdf.geometry.apply(mapping),
                         crs=clip_gdf.crs, drop=True, all_touched=True)
         
-    for tables_name, table in tables.items():
+    for tables_name, table_entry in tables.items():
+        table_alias = table_entry['alias']
+        table = table_entry['table']
         print(f'Applying {tables_name} temporal distribution...')
-        # put the temporal distribution table into a pandas DataFrame
-        df_table = pd.DataFrame.from_dict(table, orient='index', columns=['value'])
-        df_table.index.name = 'hours'
-        df_table.reset_index(inplace=True)
+        df_table = table.copy()
+        df_table = df_table.sort_values('hours').reset_index(drop=True)
+        df_table['value'] = pd.to_numeric(df_table['value'], errors='coerce')
+        df_table['increment'] = df_table['value'].diff().fillna(df_table['value'])
+
+        if df_table['value'].isna().any():
+            raise ValueError(f'{tables_name} contains non-numeric distribution values.')
 
         # collecting data arrays for each timestep to stack into a single dataset.
         list_da = []
@@ -169,8 +171,8 @@ for grid in grids:
             timestep = start_time + datetime.timedelta(hours=row['hours'])
             da_copy = da.copy(deep=True)
         
-            # Convert Units to the {temporal_value_occurrence_column} Occurance Temporal Value increment to create a dataarray to be stacked into a dataset with a time dimension.
-            da_copy = da_copy*(df_table['value'].iloc[index]/100.0)  # Convert percentage to decimal
+            # The CSV values are cumulative fractions, so use them directly for the cumulative field.
+            da_copy = da_copy * row['value']
             #  Rename data array data variable
             da_copy = da_copy.rename('PrecipCumulative')
             # Assign time coordinate  
@@ -188,7 +190,7 @@ for grid in grids:
         ds = ds.drop_vars('band')
 
         # Create Precip Incremental variable
-        ds['PrecipInc'] = ds['PrecipCumulative'].diff(dim='time', label='upper')
+        ds['PrecipInc'] = ds['PrecipCumulative'].diff(dim='time', label='upper').reindex(time=ds.time, fill_value=0)
 
         # CF Conventions
         ds = ds.rename({
@@ -217,21 +219,24 @@ for grid in grids:
         ds['PrecipInc'].attrs['long_name'] = 'Incremental Precipitation'
         
         # Add temporal distribution to the dataset.
-        ds_td = df_table.to_xarray()
-        ds_td.expand_dims(dim="time")
-        ds_td["time"] = ds.time
-        ds_td["value"] = ds_td["value"].swap_dims({"index":"time"})
-        ds_td = ds_td.drop_vars("hours")
-        ds_td = ds_td.drop_vars("index")
-        ds_td = ds_td.rename({"value":"TemporalDistribution"})
+        ds_td = xr.Dataset(
+            data_vars={
+                'TemporalDistribution': ('time', df_table['value'].to_numpy())
+            },
+            coords={
+                'time': ds.time,
+                'hours': ('time', df_table['hours'].to_numpy())
+            }
+        )
         ds = xr.merge([ds,ds_td])
-        ds['TemporalDistribution'].attrs['units'] = 'percent'
-        ds['TemporalDistribution'].attrs['long_name'] = 'Temporal Distribution Cumulative Percentage'
-        ds['TemporalDistribution'].attrs['temporalDuration'] = temporal_duration_name
-        ds['TemporalDistribution'].attrs['source'] = f'{tables_name} Temporal Distribution Table'
+        ds['TemporalDistribution'].attrs['units'] = 'fraction'
+        ds['TemporalDistribution'].attrs['long_name'] = 'Temporal Distribution Cumulative Fraction'
+        ds['TemporalDistribution'].attrs['temporalDuration'] = table_alias
+        ds['TemporalDistribution'].attrs['source'] = f'{tables_name} Temporal Distribution Table (alias: {table_alias})'
 
         # Export to netCDF
-        output_file = rf"output\{project_name}\nc\Atlas14_{project_name}{grids[grid]['year_int']}yr_{temporal_duration_name}_{tables_name}.nc"
+        table_alias_safe = sanitize_output_name(table_alias)
+        output_file = rf"output\{project_name}\nc\Atlas14_{project_name}{grids[grid]['year_int']}yr_{table_alias_safe}.nc"
         # create output directory if it does not exist
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
         print(f'Exporting to {output_file}\n')
