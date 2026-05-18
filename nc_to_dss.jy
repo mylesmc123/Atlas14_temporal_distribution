@@ -13,7 +13,7 @@ variables = ['PrecipInc']
 
 geo_options = {
     # 'pathToShp': clip_shp,
-    'targetCellSize': '2000',
+    'targetCellSize': '500',
     # 'targetWkt': WktFactory.shg(),
     # 'targetWkt': 'PROJCS["NAD83_2011_Oklahoma_South_ftUS",GEOGCS["GCS_NAD83_2011",DATUM["D_NAD83_NATIONAL_SPATIAL_REFERENCE_SYSTEM_2011",SPHEROID["GRS_1980",6378137,298.257222101]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]],PROJECTION["Lambert_Conformal_Conic"],PARAMETER["standard_parallel_1",33.93333333333333],PARAMETER["standard_parallel_2",35.23333333333333],PARAMETER["central_meridian",-98],PARAMETER["latitude_of_origin",33.33333333333334],PARAMETER["false_easting",1968500],PARAMETER["false_northing",0],UNIT["Foot_US",0.3048006096012192]]',
     'targetEpsg': '3433',  # NAD83(2011) / Arksasas North (ftUS)
@@ -21,11 +21,13 @@ geo_options = {
 }
 
 # in_dir = r"Z:\py\Atlas14_temporal_distribution\output\Texas\nc"
-in_dir = r"C:\py\Atlas14_temporal_distribution\output\I57_\nc"
+# in_dir = r"C:\py\Atlas14_temporal_distribution\output\I57_\nc"
+in_dir = r"C:\py\freq_flow_isohyet_optimizer\output\I57\nc"
 f = glob.glob(in_dir+"//*.nc")
 print ('*.nc Files found:' + str(len(f)))
 
-out_dir = r"C:\py\Atlas14_temporal_distribution\output\I57_\dss"
+# out_dir = r"C:\py\Atlas14_temporal_distribution\output\I57_\dss"
+out_dir = r"C:\py\freq_flow_isohyet_optimizer\output\I57\dss"
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
@@ -44,6 +46,7 @@ for afile in f:
     write_options = {
     'partA': partA,
     'partB': partB,
+    'partC': 'PRECIP-INC',
     'partF': partF,
     'dataType': 'PER-CUM',
     }

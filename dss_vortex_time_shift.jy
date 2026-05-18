@@ -1,0 +1,100 @@
+# HEC-Vortex DSS time-shifter (Jython, run via HMS-bundled JVM).
+#
+# Usage:
+#   cd C:\Program Files\HEC\HEC-HMS\4.12
+#   HEC-HMS.cmd -script "C:\py\Atlas14_temporal_distribution\dss_vortex_time_shift.jy"
+#
+# Shifts every grid record in each DSS file under IN_DIR forward in time by
+# SHIFT_MINUTES, writing a new file <basename>_shifted.dss to OUT_DIR.
+#
+# Default behavior shifts only the end time (SHIFT_END=True, SHIFT_START=False)
+# to work around an nc_to_dss conversion path that leaves each record with
+# startTime == endTime. Nudging the end by one data interval (e.g. 6 min for
+# 6-min hyetographs) restores a usable interval. Flip SHIFT_START to True
+# if you want a clean translation that preserves the existing interval.
+#
+# Vortex docs: Shifter at
+# https://github.com/HydrologicEngineeringCenter/Vortex/blob/v0.11.11/vortex-api/src/main/java/mil/army/usace/hec/vortex/math/Shifter.java
+# Note: HMS 4.12 ships Vortex 0.11.11 which uses the older Shifter class
+# (single shift Duration + Set<TimeShiftMethod>). Newer Vortex renamed
+# this to TimeShifter with separate shiftStart/shiftEnd Durations.
+
+from mil.army.usace.hec.vortex.io import DataReader
+from mil.army.usace.hec.vortex.math import Shifter, TimeShiftMethod
+from java.time import Duration
+from java.util import HashSet
+import glob
+import os
+
+# ---- Config ----------------------------------------------------------------
+
+SHIFT_MINUTES = 6
+
+# End-only is the default -- see header comment for the start==end bug context.
+# Set SHIFT_START=True (with SHIFT_END=True) to translate records cleanly
+# instead, preserving the existing interval.
+SHIFT_START = False
+SHIFT_END = True
+
+# DSS pathname C-part override applied to every written record. nc_to_dss.jy
+# also writes 'PRECIP-INC' here; setting it on the shift output keeps the
+# pathnames consistent with the source convention.
+WRITE_OPTIONS = {
+    "partC": "PRECIP-INC",
+}
+
+IN_DIR = r"C:\py\freq_flow_isohyet_optimizer\output\I57\dss"
+OUT_DIR = IN_DIR  # same directory; suffix disambiguates shifted files
+
+# ---- Run -------------------------------------------------------------------
+
+if not os.path.exists(OUT_DIR):
+    os.makedirs(OUT_DIR)
+
+shift_duration = Duration.ofMinutes(SHIFT_MINUTES)
+
+# Build the methods set once -- Shifter applies the same Duration to every
+# endpoint named here, so {END} shifts only the end, {START, END} translates.
+methods = HashSet()
+if SHIFT_START:
+    methods.add(TimeShiftMethod.START)
+if SHIFT_END:
+    methods.add(TimeShiftMethod.END)
+if methods.isEmpty():
+    raise SystemExit("Both SHIFT_START and SHIFT_END are False -- nothing to do.")
+
+dss_files = glob.glob(os.path.join(IN_DIR, "*.dss"))
+# Skip any previously-shifted outputs so reruns don't double-shift.
+dss_files = [p for p in dss_files if not p.lower().endswith("_shifted.dss")]
+print("DSS files found: " + str(len(dss_files)))
+
+for src in dss_files:
+    head, tail = os.path.split(src)
+    stem = os.path.splitext(tail)[0]
+    dst = os.path.join(OUT_DIR, stem + "_shifted.dss")
+
+    # Avoid stale destination -- Vortex appends, so a fresh file each run
+    # keeps records from accumulating across reruns.
+    if os.path.exists(dst):
+        os.remove(dst)
+
+    grids = DataReader.getVariables(src)
+    print("\n--- " + tail + " ---")
+    print("  variables: " + str(len(grids)))
+    print("  shift    : start={0}min end={1}min".format(
+        SHIFT_MINUTES if SHIFT_START else 0,
+        SHIFT_MINUTES if SHIFT_END else 0,
+    ))
+    print("  -> " + os.path.basename(dst))
+
+    shifter = Shifter.builder() \
+        .pathToFile(src) \
+        .grids(grids) \
+        .shift(shift_duration) \
+        .methods(methods) \
+        .destination(dst) \
+        .writeOptions(WRITE_OPTIONS) \
+        .build()
+    shifter.shift()
+
+print("\nDone.")
