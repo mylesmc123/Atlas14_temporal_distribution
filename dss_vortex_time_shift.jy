@@ -41,6 +41,7 @@ SHIFT_END = True
 # pathnames consistent with the source convention.
 WRITE_OPTIONS = {
     "partC": "PRECIP-INC",
+    'dataType': 'PER-CUM',
 }
 
 IN_DIR = r"C:\py\freq_flow_isohyet_optimizer\output\I57\dss"
